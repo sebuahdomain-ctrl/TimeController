@@ -7,7 +7,7 @@
     </style>
 
     <!-- Tema untuk popup transparan yang bisa muncul di atas layar apa pun -->
-    <style name="Theme.TimeController.Popup" parent="Theme.MaterialComponents.DayNight.Dialog.NoActionBar">
+    <style name="Theme.TimeController.Popup" parent="Theme.MaterialComponents.DayNight.Dialog">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>
