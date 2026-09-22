@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Time Controller"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Switch mode Timer / Stopwatch -->
+        <LinearLayout
+            android:id="@+id/modeSwitchContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@color/surface_muted"
+            android:padding="3dp"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:id="@+id/tabTimer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:padding="10dp"
+                android:text="Timer"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:background="@drawable/bg_time_box" />
+
+            <TextView
+                android:id="@+id/tabStopwatch"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:padding="10dp"
+                android:text="Stopwatch"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+
+        <!-- Tampilan waktu besar -->
+        <TextView
+            android:id="@+id/mainTimeDisplay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="05:00"
+            android:textColor="@color/text_primary"
+            android:textSize="56sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp" />
+
+        <!-- Tombol kontrol utama -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="28dp">
+
+            <Button
+                android:id="@+id/btnReset"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Reset" />
+
+            <Button
+                android:id="@+id/btnPlayPause"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:backgroundTint="@color/accent"
+                android:textColor="@color/on_accent"
+                android:text="Mulai" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Preset kustom"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold"
+            android:layout_marginBottom="10dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Kelola daftar preset durasi yang muncul di popup pengaturan."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:layout_marginBottom="14dp" />
+
+        <!-- Daftar preset kustom, diisi secara dinamis lewat kode -->
+        <LinearLayout
+            android:id="@+id/customPresetList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="14dp" />
+
+        <Button
+            android:id="@+id/btnAddPreset"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="+ Tambah preset baru" />
+
+    </LinearLayout>
+</ScrollView>

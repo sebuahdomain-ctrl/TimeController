@@ -1,0 +1,14 @@
+<resources>
+    <color name="background">#F5F4EF</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_muted">#F1EFE8</color>
+    <color name="text_primary">#1A1A18</color>
+    <color name="text_secondary">#6B6A64</color>
+    <color name="text_muted">#9B9A93</color>
+    <color name="border">#E4E2D9</color>
+    <color name="accent">#378ADD</color>
+    <color name="accent_muted">#E6F1FB</color>
+    <color name="accent_text">#0C447C</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="popup_scrim">#73000000</color>
+</resources>
