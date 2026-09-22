@@ -6,12 +6,15 @@
 
     <!-- Kartu popup, di tengah layar -->
     <LinearLayout
+        android:id="@+id/popupCard"
         android:layout_width="300dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/bg_card"
-        android:padding="18dp">
+        android:padding="18dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <!-- ===== HALAMAN 1: UTAMA ===== -->
         <LinearLayout
@@ -64,6 +67,8 @@
                     android:text="Timer"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
                     android:background="@drawable/bg_time_box" />
 
                 <TextView
@@ -74,7 +79,10 @@
                     android:gravity="center"
                     android:padding="8dp"
                     android:text="Stopwatch"
-                    android:textColor="@color/text_secondary" />
+                    android:textColor="@color/text_secondary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="@android:color/transparent" />
             </LinearLayout>
 
             <!-- Baris label Durasi + link ke halaman preset -->

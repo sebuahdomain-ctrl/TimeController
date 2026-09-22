@@ -175,11 +175,24 @@ class TimeService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val settingsIntent = PendingIntent.getActivity(
-            this, 1,
-            Intent(this, SettingsPopupActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        // Tombol "Atur": jalankan overlay service (bukan buka Activity), supaya popup
+        // benar-benar mengambang di atas aplikasi apa pun yang sedang dibuka user,
+        // tanpa memindahkan aplikasi itu ke background.
+        val settingsIntent = if (android.provider.Settings.canDrawOverlays(this)) {
+            PendingIntent.getService(
+                this, 1,
+                Intent(this, OverlayPopupService::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            // Izin overlay belum diberikan: fallback buka MainActivity supaya
+            // user bisa diarahkan mengaktifkan izinnya di sana.
+            PendingIntent.getActivity(
+                this, 1,
+                Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
 
         val playPauseAction = if (runState == RunState.RUNNING) {
             NotificationCompat.Action(

@@ -3,11 +3,14 @@ package com.timecontroller.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -22,6 +25,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         requestNotificationPermissionIfNeeded()
+        checkOverlayPermission()
 
         val tabTimer = findViewById<TextView>(R.id.tabTimer)
         val tabStopwatch = findViewById<TextView>(R.id.tabStopwatch)
@@ -112,6 +116,27 @@ class MainActivity : AppCompatActivity() {
                 loadPresetList()
             }
             container.addView(row)
+        }
+    }
+
+    /**
+     * Popup pengaturan butuh izin "Tampil di atas aplikasi lain" (SYSTEM_ALERT_WINDOW)
+     * supaya bisa benar-benar mengambang di atas aplikasi apa pun. Android mewajibkan
+     * izin ini diaktifkan manual lewat halaman Settings khusus, tidak bisa lewat
+     * dialog izin biasa.
+     */
+    private fun checkOverlayPermission() {
+        if (!Settings.canDrawOverlays(this)) {
+            Toast.makeText(
+                this,
+                "Aktifkan izin \"Tampil di atas aplikasi lain\" agar popup pengaturan bisa mengambang",
+                Toast.LENGTH_LONG
+            ).show()
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
         }
     }
 

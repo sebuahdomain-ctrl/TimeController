@@ -40,6 +40,8 @@
                 android:text="Timer"
                 android:textColor="@color/text_primary"
                 android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true"
                 android:background="@drawable/bg_time_box" />
 
             <TextView
@@ -50,7 +52,10 @@
                 android:gravity="center"
                 android:padding="10dp"
                 android:text="Stopwatch"
-                android:textColor="@color/text_secondary" />
+                android:textColor="@color/text_secondary"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="@android:color/transparent" />
         </LinearLayout>
 
         <!-- Tampilan waktu besar -->
