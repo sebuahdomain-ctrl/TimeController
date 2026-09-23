@@ -39,6 +39,7 @@ class TimeService : Service() {
             if (runState == RunState.RUNNING && mode == Mode.STOPWATCH) {
                 stopwatchElapsedMillis = SystemClock.elapsedRealtime() - stopwatchStartTick
                 updateNotification()
+                onUpdate?.invoke()
                 handler.postDelayed(this, 1000)
             }
         }
@@ -48,6 +49,15 @@ class TimeService : Service() {
     inner class LocalBinder : android.os.Binder() {
         fun getService(): TimeService = this@TimeService
     }
+
+    /** Dipanggil setiap kali ada perubahan state (tick, reset, pause, dll) supaya
+     *  Activity yang sedang bind bisa langsung refresh tampilannya. */
+    var onUpdate: (() -> Unit)? = null
+
+    fun getCurrentMode(): Mode = mode
+    fun getCurrentRunState(): RunState = runState
+    fun getDisplayMillis(): Long = if (mode == Mode.TIMER) timerRemainingMillis else stopwatchElapsedMillis
+    fun formatCurrentTime(): String = formatMillis(getDisplayMillis())
 
     override fun onBind(intent: Intent?): IBinder = binder
 
@@ -80,6 +90,7 @@ class TimeService : Service() {
 
     private fun setMode(newMode: Mode) {
         mode = newMode
+        onUpdate?.invoke()
     }
 
     private fun switchMode() {
@@ -87,6 +98,7 @@ class TimeService : Service() {
         mode = if (mode == Mode.TIMER) Mode.STOPWATCH else Mode.TIMER
         runState = RunState.IDLE
         updateNotification()
+        onUpdate?.invoke()
     }
 
     private fun startTimer(totalMillis: Long) {
@@ -98,19 +110,23 @@ class TimeService : Service() {
             override fun onTick(millisUntilFinished: Long) {
                 timerRemainingMillis = millisUntilFinished
                 updateNotification()
+                onUpdate?.invoke()
             }
             override fun onFinish() {
                 timerRemainingMillis = 0
                 runState = RunState.FINISHED
                 updateNotification()
+                onUpdate?.invoke()
             }
         }.start()
+        onUpdate?.invoke()
     }
 
     private fun startStopwatch() {
         runState = RunState.RUNNING
         stopwatchStartTick = SystemClock.elapsedRealtime() - stopwatchElapsedMillis
         handler.post(stopwatchTickRunnable)
+        onUpdate?.invoke()
     }
 
     private fun pause() {
@@ -121,6 +137,7 @@ class TimeService : Service() {
         }
         if (runState == RunState.RUNNING) runState = RunState.PAUSED
         updateNotification()
+        onUpdate?.invoke()
     }
 
     private fun resume() {
@@ -141,6 +158,7 @@ class TimeService : Service() {
         }
         runState = RunState.IDLE
         updateNotification()
+        onUpdate?.invoke()
     }
 
     private fun formatMillis(millis: Long): String {

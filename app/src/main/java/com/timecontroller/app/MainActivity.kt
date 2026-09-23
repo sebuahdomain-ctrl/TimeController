@@ -1,11 +1,15 @@
 package com.timecontroller.app
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.widget.LinearLayout
@@ -19,6 +23,37 @@ import androidx.core.content.ContextCompat
 class MainActivity : AppCompatActivity() {
 
     private var currentMode = TimeService.Mode.TIMER
+    private var boundService: TimeService? = null
+    private var isBound = false
+
+    private val connection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            val localBinder = binder as TimeService.LocalBinder
+            boundService = localBinder.getService()
+            isBound = true
+            // Sinkronkan tab & mode yang lagi aktif di service saat pertama connect
+            currentMode = boundService?.getCurrentMode() ?: TimeService.Mode.TIMER
+            refreshTabsExternal?.invoke()
+            boundService?.onUpdate = { runOnUiThread { refreshTimeDisplay() } }
+            refreshTimeDisplay()
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            boundService?.onUpdate = null
+            boundService = null
+            isBound = false
+        }
+    }
+
+    // Dipakai supaya callback bind bisa memicu refreshTabs() yang didefinisikan di onCreate()
+    private var refreshTabsExternal: (() -> Unit)? = null
+
+    private fun refreshTimeDisplay() {
+        val display = findViewById<TextView>(R.id.mainTimeDisplay)
+        boundService?.let {
+            display.text = it.formatCurrentTime()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,11 +68,25 @@ class MainActivity : AppCompatActivity() {
         fun refreshTabs() {
             tabTimer.setBackgroundResource(if (currentMode == TimeService.Mode.TIMER) R.drawable.bg_time_box else 0)
             tabStopwatch.setBackgroundResource(if (currentMode == TimeService.Mode.STOPWATCH) R.drawable.bg_time_box else 0)
+            refreshTimeDisplay()
         }
         refreshTabs()
+        refreshTabsExternal = { refreshTabs() }
 
-        tabTimer.setOnClickListener { currentMode = TimeService.Mode.TIMER; refreshTabs() }
-        tabStopwatch.setOnClickListener { currentMode = TimeService.Mode.STOPWATCH; refreshTabs() }
+        tabTimer.setOnClickListener {
+            currentMode = TimeService.Mode.TIMER
+            refreshTabs()
+            val intent = Intent(this, TimeService::class.java)
+            intent.action = TimeService.ACTION_SWITCH_MODE
+            ContextCompat.startForegroundService(this, intent)
+        }
+        tabStopwatch.setOnClickListener {
+            currentMode = TimeService.Mode.STOPWATCH
+            refreshTabs()
+            val intent = Intent(this, TimeService::class.java)
+            intent.action = TimeService.ACTION_SWITCH_MODE
+            ContextCompat.startForegroundService(this, intent)
+        }
 
         findViewById<android.widget.Button>(R.id.btnPlayPause).setOnClickListener {
             val intent = Intent(this, TimeService::class.java)
@@ -47,12 +96,14 @@ class MainActivity : AppCompatActivity() {
                 TimeService.ACTION_START_STOPWATCH
             }
             ContextCompat.startForegroundService(this, intent)
+            refreshTimeDisplay()
         }
 
         findViewById<android.widget.Button>(R.id.btnReset).setOnClickListener {
             val intent = Intent(this, TimeService::class.java)
             intent.action = TimeService.ACTION_RESET
             ContextCompat.startForegroundService(this, intent)
+            refreshTimeDisplay()
         }
 
         findViewById<android.widget.Button>(R.id.btnAddPreset).setOnClickListener {
@@ -60,6 +111,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         loadPresetList()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        bindService(Intent(this, TimeService::class.java), connection, Context.BIND_AUTO_CREATE)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isBound) {
+            boundService?.onUpdate = null
+            unbindService(connection)
+            isBound = false
+        }
     }
 
     override fun onResume() {
@@ -111,6 +176,20 @@ class MainActivity : AppCompatActivity() {
             val row = LayoutInflater.from(this)
                 .inflate(R.layout.item_custom_preset_row, container, false)
             row.findViewById<TextView>(R.id.presetRowLabel).text = preset.label()
+
+            // Tap di baris preset (selain tombol Hapus) langsung pakai preset itu:
+            // set mode ke Timer, isi durasinya, dan mulai timer-nya.
+            row.setOnClickListener {
+                currentMode = TimeService.Mode.TIMER
+                refreshTabsExternal?.invoke()
+                val intent = Intent(this, TimeService::class.java)
+                intent.action = TimeService.ACTION_START_TIMER
+                intent.putExtra(TimeService.EXTRA_MINUTES, preset.totalSeconds / 60)
+                intent.putExtra(TimeService.EXTRA_SECONDS, preset.totalSeconds % 60)
+                ContextCompat.startForegroundService(this, intent)
+                refreshTimeDisplay()
+            }
+
             row.findViewById<TextView>(R.id.presetRowDelete).setOnClickListener {
                 PresetStore.removePreset(this, preset.totalSeconds)
                 loadPresetList()
