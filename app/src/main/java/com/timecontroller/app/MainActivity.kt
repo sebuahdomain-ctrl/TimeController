@@ -12,7 +12,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.provider.Settings
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.view.DragEvent
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -22,6 +25,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,6 +33,11 @@ class MainActivity : AppCompatActivity() {
     private var boundService: TimeService? = null
     private var isBound = false
     private var editMode = false
+
+    /** Satu entri lap/putaran: waktu total saat lap diambil, dan durasi sejak lap sebelumnya. */
+    private data class LapEntry(val number: Int, val totalMillis: Long, val splitMillis: Long)
+    private val laps = mutableListOf<LapEntry>()
+    private var lastLapTotalMillis: Long = 0L
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -83,9 +92,92 @@ class MainActivity : AppCompatActivity() {
             playPauseText.text = if (isRunning) "\u2759\u2759" else "\u25B6"
         } else {
             val elapsedMillis = service.getDisplayMillis()
-            swTimeDisplay.text = service.formatCurrentTime()
+            swTimeDisplay.text = formatStopwatchDisplay(elapsedMillis)
             dialView.elapsedSeconds = elapsedMillis / 1000f
-            swPrimaryText.text = if (isRunning) "Jeda" else "Mulai"
+            val swSecondaryText = findViewById<TextView>(R.id.btnSwSecondary)
+            swPrimaryText.text = if (isRunning) {
+                "Jeda"
+            } else if (elapsedMillis > 0) {
+                "Lanjutkan"
+            } else {
+                "Mulai"
+            }
+            swSecondaryText.text = if (isRunning) "Putaran" else "Reset"
+            swSecondaryText.setTextColor(
+                ContextCompat.getColor(this, if (isRunning) R.color.text_primary else R.color.accent)
+            )
+            swSecondaryText.setBackgroundResource(
+                if (isRunning) R.drawable.bg_time_box else R.drawable.bg_pill_accent_muted
+            )
+
+            // Reset dari luar (mis. tombol notifikasi) membuat elapsed kembali ke 0
+            // walau sedang tidak berjalan: bersihkan daftar lap juga di sini.
+            if (elapsedMillis == 0L && laps.isNotEmpty() && runState == TimeService.RunState.IDLE) {
+                clearLaps()
+            }
+        }
+    }
+
+    /**
+     * Format tampilan stopwatch:
+     * - Di bawah 1 jam: menit.detik,per-seratus detik dengan bagian per-seratus
+     *   detik berwarna merah (mis. 00.35,61) supaya lebih terlihat "profesional".
+     * - Sudah mencapai 1 jam: berpindah ke jam:menit:detik biasa tanpa per-seratus
+     *   detik (mis. 01:00:00), sesuai permintaan.
+     */
+    private fun formatStopwatchDisplay(millis: Long): CharSequence {
+        val totalHours = millis / 3_600_000L
+        if (totalHours > 0) {
+            val totalSeconds = millis / 1000
+            val h = totalSeconds / 3600
+            val m = (totalSeconds % 3600) / 60
+            val s = totalSeconds % 60
+            return String.format(Locale.getDefault(), "%02d:%02d:%02d", h, m, s)
+        }
+        val totalSeconds = millis / 1000
+        val m = totalSeconds / 60
+        val s = totalSeconds % 60
+        val centis = (millis % 1000) / 10
+        val mainPart = String.format(Locale.getDefault(), "%02d.%02d,", m, s)
+        val centisPart = String.format(Locale.getDefault(), "%02d", centis)
+        val full = SpannableString(mainPart + centisPart)
+        full.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(this, R.color.accent)),
+            mainPart.length,
+            full.length,
+            SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return full
+    }
+
+    // ---------- Lap / putaran stopwatch ----------
+
+    private fun addLap() {
+        val service = boundService ?: return
+        val totalMillis = service.getDisplayMillis()
+        val splitMillis = totalMillis - lastLapTotalMillis
+        lastLapTotalMillis = totalMillis
+        laps.add(0, LapEntry(laps.size + 1, totalMillis, splitMillis))
+        renderLaps()
+    }
+
+    private fun clearLaps() {
+        laps.clear()
+        lastLapTotalMillis = 0L
+        renderLaps()
+    }
+
+    private fun renderLaps() {
+        val lapListContainer = findViewById<LinearLayout>(R.id.lapList)
+        lapListContainer.removeAllViews()
+        lapListContainer.visibility = if (laps.isEmpty()) View.GONE else View.VISIBLE
+
+        laps.forEach { lap ->
+            val row = LayoutInflater.from(this).inflate(R.layout.item_lap_row, lapListContainer, false)
+            row.findViewById<TextView>(R.id.lapNumber).text = "Lap " + lap.number
+            row.findViewById<TextView>(R.id.lapSplitTime).text = "+" + formatStopwatchDisplay(lap.splitMillis)
+            row.findViewById<TextView>(R.id.lapTotalTime).text = formatStopwatchDisplay(lap.totalMillis)
+            lapListContainer.addView(row)
         }
     }
 
@@ -122,6 +214,8 @@ class MainActivity : AppCompatActivity() {
             presetSection.visibility = if (isTimer) View.VISIBLE else View.GONE
             stopwatchHint.visibility = if (isTimer) View.GONE else View.VISIBLE
             if (!isTimer) settingsPanel.visibility = View.GONE
+            findViewById<LinearLayout>(R.id.lapList).visibility =
+                if (!isTimer && laps.isNotEmpty()) View.VISIBLE else View.GONE
 
             refreshTimeDisplay()
         }
@@ -179,12 +273,18 @@ class MainActivity : AppCompatActivity() {
             refreshTimeDisplay()
         }
 
-        // Tombol sekunder Stopwatch: reset
+        // Tombol sekunder Stopwatch: "Putaran" saat berjalan, "Reset" saat tidak.
         findViewById<TextView>(R.id.btnSwSecondary).setOnClickListener {
-            val intent = Intent(this, TimeService::class.java)
-            intent.action = TimeService.ACTION_RESET
-            ContextCompat.startForegroundService(this, intent)
-            refreshTimeDisplay()
+            val isRunning = boundService?.getCurrentRunState() == TimeService.RunState.RUNNING
+            if (isRunning) {
+                addLap()
+            } else {
+                val intent = Intent(this, TimeService::class.java)
+                intent.action = TimeService.ACTION_RESET
+                ContextCompat.startForegroundService(this, intent)
+                clearLaps()
+                refreshTimeDisplay()
+            }
         }
 
         findViewById<TextView>(R.id.btnSettings).setOnClickListener {

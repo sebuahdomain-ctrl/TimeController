@@ -106,8 +106,8 @@
         <!-- Dial mode Stopwatch -->
         <FrameLayout
             android:id="@+id/dialWrap"
-            android:layout_width="240dp"
-            android:layout_height="240dp"
+            android:layout_width="300dp"
+            android:layout_height="300dp"
             android:layout_gravity="center_horizontal"
             android:layout_marginBottom="24dp"
             android:visibility="gone">
@@ -117,15 +117,18 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
+            <!-- Padding dalam supaya teks waktu tidak terlalu mepet ke lingkaran gerigi -->
             <TextView
                 android:id="@+id/swTimeDisplay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="00:00"
+                android:padding="28dp"
+                android:text="00.00,00"
                 android:textColor="@color/text_primary"
-                android:textSize="38sp"
-                android:fontFamily="sans-serif-medium" />
+                android:textSize="30sp"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false" />
         </FrameLayout>
 
         <!-- Status label -->
@@ -230,6 +233,15 @@
                 android:clickable="true"
                 android:focusable="true" />
         </LinearLayout>
+
+        <!-- Daftar lap/putaran stopwatch, diisi dinamis lewat kode. Terbaru di atas. -->
+        <LinearLayout
+            android:id="@+id/lapList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="20dp" />
 
         <!-- Panel pengaturan (getar) -->
         <LinearLayout
