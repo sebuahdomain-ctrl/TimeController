@@ -11,7 +11,6 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageView
-import android.widget.NumberPicker
 import android.widget.TextView
 
 /**
@@ -107,70 +106,46 @@ object OverlayManager : TimerStopwatchEngine.Listener {
 
     // ================= SETUP NUMBERPICKER (WHEEL) =================
 
-    private fun configureWheel(picker: NumberPicker) {
+    private fun configureWheel(picker: WheelPicker) {
         picker.minValue = 0
         picker.maxValue = 59
-        picker.setFormatter { v -> TimerStopwatchEngine.formatTwoDigits(v) }
-        picker.wrapSelectorWheel = true
-        picker.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        styleWheelLikeDesign(picker)
-    }
-
-    /**
-     * NumberPicker bawaan Android menampilkan 2 garis divider + EditText internal
-     * berlatar putih - keduanya membuat kotak menit/detik terlihat beda jauh dari
-     * kotak gelap polos (bg_box) pada desain HTML. Fungsi ini menghilangkan
-     * keduanya (dengan try-catch supaya aman kalau field privat berubah di versi
-     * Android tertentu) supaya tampilannya mendekati desain.
-     */
-    private fun styleWheelLikeDesign(picker: NumberPicker) {
-        try {
-            val dividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider")
-            dividerField.isAccessible = true
-            dividerField.set(picker, null)
-        } catch (e: Exception) {
-            // OEM/versi Android tertentu bisa menolak akses field ini - divider bawaan tetap tampil, tidak fatal
-        }
-
-        picker.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-        for (i in 0 until picker.childCount) {
-            val child = picker.getChildAt(i)
-            if (child is android.widget.EditText) {
-                child.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                child.setTextColor(picker.context.getColor(R.color.text_white))
-            }
-        }
     }
 
     private fun setupPickers(view: View) {
-        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
-        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
-        val pickerNewMin = view.findViewById<NumberPicker>(R.id.pickerNewPresetMinute)
-        val pickerNewSec = view.findViewById<NumberPicker>(R.id.pickerNewPresetSecond)
+        val pickerMin = view.findViewById<WheelPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<WheelPicker>(R.id.pickerSecond)
+        val pickerNewMin = view.findViewById<WheelPicker>(R.id.pickerNewPresetMinute)
+        val pickerNewSec = view.findViewById<WheelPicker>(R.id.pickerNewPresetSecond)
 
         listOf(pickerMin, pickerSec, pickerNewMin, pickerNewSec).forEach { configureWheel(it) }
 
-        pickerMin.value = TimerStopwatchEngine.timerMinutes
-        pickerSec.value = TimerStopwatchEngine.timerSeconds
+        pickerMin.setValue(TimerStopwatchEngine.timerMinutes)
+        pickerSec.setValue(TimerStopwatchEngine.timerSeconds)
 
         // Sesuai logic onWheelScrolled('min'/'sec'): update state + beep nada pendek saat berhenti scroll
-        pickerMin.setOnValueChangedListener { _, _, newVal ->
-            if (TimerStopwatchEngine.timerIsRunning) return@setOnValueChangedListener
-            TimerStopwatchEngine.setWheelMinute(newVal)
-            BeepPlayer.beep(950.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+        pickerMin.onValueChangeListener = { newVal ->
+            if (TimerStopwatchEngine.timerIsRunning) {
+                pickerMin.setValue(TimerStopwatchEngine.timerMinutes)
+            } else {
+                TimerStopwatchEngine.setWheelMinute(newVal)
+                BeepPlayer.beep(950.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+            }
         }
-        pickerSec.setOnValueChangedListener { _, _, newVal ->
-            if (TimerStopwatchEngine.timerIsRunning) return@setOnValueChangedListener
-            TimerStopwatchEngine.setWheelSecond(newVal)
-            BeepPlayer.beep(1150.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+        pickerSec.onValueChangeListener = { newVal ->
+            if (TimerStopwatchEngine.timerIsRunning) {
+                pickerSec.setValue(TimerStopwatchEngine.timerSeconds)
+            } else {
+                TimerStopwatchEngine.setWheelSecond(newVal)
+                BeepPlayer.beep(1150.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+            }
         }
 
-        pickerNewMin.setOnValueChangedListener { _, _, newVal ->
+        pickerNewMin.onValueChangeListener = { newVal ->
             newPresetMin = newVal
             BeepPlayer.beep(950.0, 0.02, BeepPlayer.Wave.TRIANGLE)
             updateNewPresetBadge(view)
         }
-        pickerNewSec.setOnValueChangedListener { _, _, newVal ->
+        pickerNewSec.onValueChangeListener = { newVal ->
             newPresetSec = newVal
             BeepPlayer.beep(1150.0, 0.02, BeepPlayer.Wave.TRIANGLE)
             updateNewPresetBadge(view)
@@ -277,8 +252,8 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         if (TimerStopwatchEngine.isPresetDeleteMode) TimerStopwatchEngine.togglePresetDeleteMode()
         view.findViewById<View>(R.id.timerPresetView).visibility = View.GONE
         view.findViewById<View>(R.id.timerMainView).visibility = View.VISIBLE
-        view.findViewById<NumberPicker>(R.id.pickerMinute).value = TimerStopwatchEngine.timerMinutes
-        view.findViewById<NumberPicker>(R.id.pickerSecond).value = TimerStopwatchEngine.timerSeconds
+        view.findViewById<WheelPicker>(R.id.pickerMinute).setValue(TimerStopwatchEngine.timerMinutes)
+        view.findViewById<WheelPicker>(R.id.pickerSecond).setValue(TimerStopwatchEngine.timerSeconds)
         if (!silent) BeepPlayer.beep(550.0, 0.03, BeepPlayer.Wave.SINE)
     }
 
@@ -286,8 +261,8 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         inAddPresetView = true
         newPresetMin = 0
         newPresetSec = 0
-        view.findViewById<NumberPicker>(R.id.pickerNewPresetMinute).value = 0
-        view.findViewById<NumberPicker>(R.id.pickerNewPresetSecond).value = 0
+        view.findViewById<WheelPicker>(R.id.pickerNewPresetMinute).setValue(0)
+        view.findViewById<WheelPicker>(R.id.pickerNewPresetSecond).setValue(0)
         updateNewPresetBadge(view)
 
         view.findViewById<View>(R.id.timerPresetView).visibility = View.GONE
@@ -459,7 +434,7 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         } else {
             btn.setBackgroundResource(R.drawable.bg_toggle_delete)
             text.text = "Hapus"
-            text.setTextColor(view.context.getColor(R.color.text_gray))
+            text.setTextColor(android.graphics.Color.parseColor("#D1D5DB"))
         }
     }
 
@@ -468,10 +443,10 @@ object OverlayManager : TimerStopwatchEngine.Listener {
     private fun refreshPopupUI() {
         val view = popupView ?: return
 
-        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
-        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
-        if (pickerMin.value != TimerStopwatchEngine.timerMinutes) pickerMin.value = TimerStopwatchEngine.timerMinutes
-        if (pickerSec.value != TimerStopwatchEngine.timerSeconds) pickerSec.value = TimerStopwatchEngine.timerSeconds
+        val pickerMin = view.findViewById<WheelPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<WheelPicker>(R.id.pickerSecond)
+        if (pickerMin.getValue() != TimerStopwatchEngine.timerMinutes) pickerMin.setValue(TimerStopwatchEngine.timerMinutes)
+        if (pickerSec.getValue() != TimerStopwatchEngine.timerSeconds) pickerSec.setValue(TimerStopwatchEngine.timerSeconds)
 
         val primaryText = view.findViewById<TextView>(R.id.primaryTimerText)
         val primaryIcon = view.findViewById<ImageView>(R.id.primaryTimerIcon)
@@ -564,10 +539,10 @@ object OverlayManager : TimerStopwatchEngine.Listener {
 
     override fun onTimerTick() {
         val view = popupView ?: return
-        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
-        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
-        if (pickerMin.value != TimerStopwatchEngine.timerMinutes) pickerMin.value = TimerStopwatchEngine.timerMinutes
-        if (pickerSec.value != TimerStopwatchEngine.timerSeconds) pickerSec.value = TimerStopwatchEngine.timerSeconds
+        val pickerMin = view.findViewById<WheelPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<WheelPicker>(R.id.pickerSecond)
+        if (pickerMin.getValue() != TimerStopwatchEngine.timerMinutes) pickerMin.setValue(TimerStopwatchEngine.timerMinutes)
+        if (pickerSec.getValue() != TimerStopwatchEngine.timerSeconds) pickerSec.setValue(TimerStopwatchEngine.timerSeconds)
     }
 
     override fun onTimerFinished() {

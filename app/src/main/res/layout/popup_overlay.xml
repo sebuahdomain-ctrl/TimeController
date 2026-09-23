@@ -120,10 +120,14 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="6dp"
                 android:orientation="horizontal"
                 android:gravity="center">
 
@@ -131,11 +135,10 @@
                     android:layout_width="84dp"
                     android:layout_height="56dp"
                     android:background="@drawable/bg_box">
-                    <NumberPicker
+                    <com.timecontroller.app.WheelPicker
                         android:id="@+id/pickerMinute"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:theme="@style/WheelPickerTheme" />
+                        android:layout_height="match_parent" />
                 </FrameLayout>
 
                 <TextView
@@ -151,19 +154,21 @@
                     android:layout_width="84dp"
                     android:layout_height="56dp"
                     android:background="@drawable/bg_box">
-                    <NumberPicker
+                    <com.timecontroller.app.WheelPicker
                         android:id="@+id/pickerSecond"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:theme="@style/WheelPickerTheme" />
+                        android:layout_height="match_parent" />
                 </FrameLayout>
             </LinearLayout>
 
-            <LinearLayout
+            <View
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1"
-                android:gravity="bottom"
+                android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
                 android:orientation="horizontal">
 
                 <LinearLayout
@@ -246,16 +251,16 @@
                     android:background="?android:attr/selectableItemBackgroundBorderless">
 
                     <ImageView
-                        android:layout_width="10dp"
-                        android:layout_height="10dp"
-                        android:layout_marginEnd="3dp"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="4dp"
                         android:src="@drawable/ic_back" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Kembali"
-                        android:textColor="@color/text_white"
+                        android:textColor="#D1D5DB"
                         android:textStyle="bold"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -270,8 +275,8 @@
                     android:background="@drawable/bg_toggle_delete">
 
                     <ImageView
-                        android:layout_width="9dp"
-                        android:layout_height="9dp"
+                        android:layout_width="10dp"
+                        android:layout_height="10dp"
                         android:layout_marginEnd="3dp"
                         android:src="@drawable/ic_trash" />
 
@@ -280,9 +285,9 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Hapus"
-                        android:textColor="@color/text_gray"
+                        android:textColor="#D1D5DB"
                         android:textStyle="bold"
-                        android:textSize="9sp" />
+                        android:textSize="10sp" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -343,11 +348,10 @@
                     android:layout_width="84dp"
                     android:layout_height="56dp"
                     android:background="@drawable/bg_box">
-                    <NumberPicker
+                    <com.timecontroller.app.WheelPicker
                         android:id="@+id/pickerNewPresetMinute"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:theme="@style/WheelPickerTheme" />
+                        android:layout_height="match_parent" />
                 </FrameLayout>
 
                 <TextView
@@ -363,11 +367,10 @@
                     android:layout_width="84dp"
                     android:layout_height="56dp"
                     android:background="@drawable/bg_box">
-                    <NumberPicker
+                    <com.timecontroller.app.WheelPicker
                         android:id="@+id/pickerNewPresetSecond"
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:theme="@style/WheelPickerTheme" />
+                        android:layout_height="match_parent" />
                 </FrameLayout>
             </LinearLayout>
 
