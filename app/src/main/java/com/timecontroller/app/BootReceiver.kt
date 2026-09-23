@@ -3,13 +3,14 @@ package com.timecontroller.app
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.core.content.ContextCompat
 
+/**
+ * Placeholder untuk BOOT_COMPLETED. Sengaja tidak auto-start service saat HP
+ * reboot, karena start/stop service adalah keputusan eksplisit user lewat
+ * tombol di halaman utama - bukan sesuatu yang harus otomatis menyala sendiri.
+ */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            val serviceIntent = Intent(context, TimeService::class.java)
-            ContextCompat.startForegroundService(context, serviceIntent)
-        }
+        // Sengaja dikosongkan.
     }
 }

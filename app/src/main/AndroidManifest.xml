@@ -1,65 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Izin dasar notifikasi & foreground service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- Wajib supaya popup pengaturan bisa benar-benar mengambang di atas aplikasi lain -->
+
+    <!-- Izin popup di atas aplikasi lain -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Izin alarm presisi (Android 12+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
+    <!-- Supaya alarm tetap jalan walau HP di mode hemat baterai / layar mati -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Auto-start service lagi setelah HP reboot (opsional, biar service konsisten) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.TimeController"
-        android:supportsRtl="true">
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.TimeController">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTask">
+            android:theme="@style/Theme.TimeController">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- Popup pengaturan: transparan, muncul di atas layar apa pun -->
+        <!-- Activity transparan tak terlihat, hanya sebagai host untuk overlay popup -->
         <activity
-            android:name=".SettingsPopupActivity"
+            android:name=".OverlayPermissionActivity"
             android:exported="false"
-            android:theme="@style/Theme.TimeController.Popup"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop" />
+            android:theme="@style/Theme.Transparent" />
 
         <service
-            android:name=".TimeService"
+            android:name=".TimeControllerService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Persistent timer and stopwatch control" />
+                android:value="Layanan timer dan stopwatch yang berjalan di latar belakang" />
         </service>
 
-        <!-- Service overlay: menampilkan popup pengaturan mengambang di atas app apa pun -->
-        <service
-            android:name=".OverlayPopupService"
-            android:exported="false" />
+        <receiver android:name=".NotificationActionReceiver" android:exported="false" />
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
 
-        <receiver
-            android:name=".BootReceiver"
-            android:exported="true">
+        <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".NotificationActionReceiver"
-            android:exported="false" />
-
     </application>
+
 </manifest>

@@ -1,23 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Sengaja pakai parent NoActionBar biasa (bukan DayNight) supaya tema
-         SELALU gelap dan tidak ikut berubah saat sistem ganti mode terang/gelap. -->
-    <style name="Theme.TimeController" parent="Theme.MaterialComponents.NoActionBar">
-        <item name="colorPrimary">@color/accent</item>
-        <item name="colorPrimaryDark">@color/accent</item>
-        <item name="colorAccent">@color/accent</item>
-        <item name="android:windowBackground">@color/background</item>
-        <!-- Cegah Android "membantu" menggelapkan ulang warna kita sendiri,
-             yang menyebabkan teks jadi abu-abu/buram alih-alih hitam/putih pekat. -->
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+    <style name="Theme.TimeController" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/maroon</item>
+        <item name="colorPrimaryDark">@color/maroon_dark</item>
+        <item name="colorAccent">@color/maroon_light</item>
+        <item name="android:statusBarColor">@color/bg_white</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
     </style>
 
-    <!-- Tema untuk popup transparan yang bisa muncul di atas layar apa pun -->
-    <style name="Theme.TimeController.Popup" parent="Theme.MaterialComponents.Dialog">
+    <style name="Theme.Transparent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:backgroundDimEnabled">true</item>
-        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
-        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

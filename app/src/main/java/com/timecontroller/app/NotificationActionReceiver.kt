@@ -5,11 +5,15 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Reserved for future notification action handling.
- * Saat ini semua aksi tombol notif dikirim langsung ke TimeService.
+ * Menangani tombol "Buka" pada notifikasi persistent di status bar,
+ * yang memunculkan popup pengaturan Timer/Stopwatch sebagai overlay.
  */
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Tidak digunakan untuk saat ini
+        when (intent.action) {
+            TimeControllerService.ACTION_OPEN_POPUP -> {
+                OverlayManager.togglePopup(context)
+            }
+        }
     }
 }

@@ -1,3 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Time Controller</string>
+    <string name="app_name">TimeController</string>
+    <string name="btn_start">MULAI</string>
+    <string name="btn_stop">STOP</string>
+    <string name="notif_channel_service">Layanan TimeController</string>
+    <string name="notif_channel_alarm">Alarm TimeController</string>
+    <string name="notif_service_title">TimeController aktif</string>
+    <string name="notif_service_text">Ketuk untuk buka pengaturan timer / stopwatch</string>
+    <string name="notif_action_open">Buka</string>
+    <string name="notif_alarm_title">Timer berakhir</string>
+    <string name="notif_action_dismiss">Matikan</string>
 </resources>

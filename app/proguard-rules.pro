@@ -1,1 +1,1 @@
-# Aturan Proguard - kosong karena minifyEnabled dimatikan untuk build ini.
+# Add project specific ProGuard rules here.

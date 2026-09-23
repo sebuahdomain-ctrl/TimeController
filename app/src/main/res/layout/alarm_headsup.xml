@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/bg_card"
+    android:padding="18dp"
+    android:elevation="20dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/notif_alarm_title"
+            android:textColor="@color/text_white"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/alarmSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Waktu habis"
+            android:textColor="@color/text_gray"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/btnDismissAlarm"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:paddingHorizontal="18dp"
+        android:gravity="center"
+        android:text="@string/notif_action_dismiss"
+        android:textColor="@color/text_white"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:background="@drawable/bg_btn_maroon" />
+
+</LinearLayout>
