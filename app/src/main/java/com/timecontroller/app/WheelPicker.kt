@@ -95,6 +95,9 @@ class WheelPicker @JvmOverloads constructor(
         }
     })
 
+    private var defaultWidthPx = 0
+    private var defaultHeightPx = 0
+
     init {
         // Ukuran default kalau tidak di-override lewat layout XML: 84dp x 56dp,
         // persis seperti spesifikasi di desain HTML.
@@ -102,9 +105,6 @@ class WheelPicker @JvmOverloads constructor(
         defaultWidthPx = (84 * density).roundToInt()
         defaultHeightPx = (56 * density).roundToInt()
     }
-
-    private var defaultWidthPx = 0
-    private var defaultHeightPx = 0
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = resolveSize(defaultWidthPx, widthMeasureSpec)
