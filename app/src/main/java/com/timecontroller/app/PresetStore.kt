@@ -45,6 +45,11 @@ object PresetStore {
         save(context, current)
     }
 
+    /** Menyimpan ulang preset sesuai urutan baru hasil drag & drop (pindah posisi). */
+    fun reorderPresets(context: Context, newOrderSeconds: List<Int>) {
+        save(context, newOrderSeconds)
+    }
+
     private fun save(context: Context, seconds: List<Int>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY_PRESETS, seconds.joinToString(",")).apply()

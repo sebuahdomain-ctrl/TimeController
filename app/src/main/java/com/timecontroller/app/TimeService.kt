@@ -57,7 +57,9 @@ class TimeService : Service() {
     fun getCurrentMode(): Mode = mode
     fun getCurrentRunState(): RunState = runState
     fun getDisplayMillis(): Long = if (mode == Mode.TIMER) timerRemainingMillis else stopwatchElapsedMillis
+    fun getTimerTotalMillis(): Long = timerTotalMillis
     fun formatCurrentTime(): String = formatMillis(getDisplayMillis())
+    fun formatMillisPublic(millis: Long): String = formatMillis(millis)
 
     override fun onBind(intent: Intent?): IBinder = binder
 

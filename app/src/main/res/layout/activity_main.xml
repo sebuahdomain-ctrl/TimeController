@@ -11,24 +11,15 @@
         android:orientation="vertical"
         android:padding="20dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Time Controller"
-            android:textColor="@color/text_primary"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Switch mode Timer / Stopwatch -->
+        <!-- Tab pill Timer / Stopwatch -->
         <LinearLayout
             android:id="@+id/modeSwitchContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:background="@color/surface_muted"
-            android:padding="3dp"
-            android:layout_marginBottom="20dp">
+            android:background="@drawable/bg_tab_pill"
+            android:padding="4dp"
+            android:layout_marginBottom="24dp">
 
             <TextView
                 android:id="@+id/tabTimer"
@@ -36,9 +27,11 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:padding="10dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:text="Timer"
                 android:textColor="@color/text_primary"
+                android:textSize="13sp"
                 android:textStyle="bold"
                 android:clickable="true"
                 android:focusable="true"
@@ -50,87 +43,407 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center"
-                android:padding="10dp"
+                android:paddingTop="10dp"
+                android:paddingBottom="10dp"
                 android:text="Stopwatch"
                 android:textColor="@color/text_secondary"
+                android:textSize="13sp"
                 android:clickable="true"
                 android:focusable="true"
                 android:background="@android:color/transparent" />
         </LinearLayout>
 
-        <!-- Tampilan waktu besar -->
+        <!-- Ring progress mode Timer -->
+        <FrameLayout
+            android:id="@+id/ringWrap"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp">
+
+            <com.timecontroller.app.TimerRingView
+                android:id="@+id/timerRingView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="TIMER"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/mainTimeDisplay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="05:00"
+                    android:textColor="@color/text_primary"
+                    android:textSize="44sp"
+                    android:textStyle="normal"
+                    android:fontFamily="sans-serif-medium" />
+
+                <TextView
+                    android:id="@+id/timerSubLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="dari 05:00"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Dial mode Stopwatch -->
+        <FrameLayout
+            android:id="@+id/dialWrap"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:visibility="gone">
+
+            <com.timecontroller.app.StopwatchDialView
+                android:id="@+id/stopwatchDialView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:id="@+id/swTimeDisplay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="00:00"
+                android:textColor="@color/text_primary"
+                android:textSize="38sp"
+                android:fontFamily="sans-serif-medium" />
+        </FrameLayout>
+
+        <!-- Status label -->
         <TextView
-            android:id="@+id/mainTimeDisplay"
+            android:id="@+id/statusLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="05:00"
-            android:textColor="@color/text_primary"
-            android:textSize="56sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="24dp" />
+            android:text="Siap"
+            android:textColor="@color/accent"
+            android:textSize="13sp"
+            android:layout_marginBottom="20dp" />
 
-        <!-- Tombol kontrol utama -->
+        <!-- Kontrol mode Timer: settings bulat - play besar - reset bulat -->
         <LinearLayout
+            android:id="@+id/timerControls"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginBottom="28dp">
+            android:gravity="center"
+            android:layout_marginBottom="24dp">
 
-            <Button
+            <TextView
+                android:id="@+id/btnSettings"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/bg_circle_btn"
+                android:gravity="center"
+                android:text="\u2699"
+                android:textColor="@color/text_secondary"
+                android:textSize="18sp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/btnPlayPause"
+                android:layout_width="68dp"
+                android:layout_height="68dp"
+                android:background="@drawable/bg_circle_btn_accent"
+                android:gravity="center"
+                android:text="\u25B6"
+                android:textColor="@color/on_accent"
+                android:textSize="22sp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <TextView
                 android:id="@+id/btnReset"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="24dp"
+                android:background="@drawable/bg_circle_btn"
+                android:gravity="center"
+                android:text="\u21BA"
+                android:textColor="@color/text_secondary"
+                android:textSize="18sp"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <!-- Kontrol mode Stopwatch: dua tombol pill -->
+        <LinearLayout
+            android:id="@+id/stopwatchControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:id="@+id/btnSwSecondary"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginEnd="8dp"
-                android:text="Reset" />
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
+                android:background="@drawable/bg_pill_accent_muted"
+                android:gravity="center"
+                android:text="Reset"
+                android:textColor="@color/accent"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true" />
 
-            <Button
-                android:id="@+id/btnPlayPause"
+            <TextView
+                android:id="@+id/btnSwPrimary"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:backgroundTint="@color/accent"
+                android:layout_marginStart="8dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
+                android:background="@drawable/bg_pill_accent"
+                android:gravity="center"
+                android:text="Mulai"
                 android:textColor="@color/on_accent"
-                android:text="Mulai" />
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:clickable="true"
+                android:focusable="true" />
         </LinearLayout>
 
-        <!-- Seksi Preset kustom, disembunyikan otomatis saat mode Stopwatch aktif -->
+        <!-- Panel pengaturan (getar) -->
+        <LinearLayout
+            android:id="@+id/settingsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_settings_panel"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="14dp"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            android:layout_marginBottom="20dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Getar saat selesai"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <Switch
+                android:id="@+id/vibrateToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true" />
+        </LinearLayout>
+
+        <!-- Seksi Preset kustom -->
         <LinearLayout
             android:id="@+id/presetSection"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Preset kustom"
-                android:textColor="@color/text_primary"
-                android:textStyle="bold"
-                android:layout_marginBottom="10dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Kelola daftar preset durasi yang muncul di popup pengaturan."
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:layout_marginBottom="14dp" />
-
-            <!-- Daftar preset kustom, diisi secara dinamis lewat kode -->
             <LinearLayout
-                android:id="@+id/customPresetList"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginBottom="14dp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
 
-            <Button
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="PRESET"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    android:letterSpacing="0.1" />
+
+                <TextView
+                    android:id="@+id/editToggle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Edit"
+                    android:textColor="@color/accent"
+                    android:textSize="14sp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="4dp" />
+            </LinearLayout>
+
+            <!-- Daftar preset kustom (lingkaran), diisi & disusun dinamis lewat kode -->
+            <com.timecontroller.app.FlowRowLayout
+                android:id="@+id/customPresetList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/presetHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Tekan dan tahan untuk pindah posisi, ketuk \u00D7 untuk hapus"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:layout_marginTop="12dp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/btnAddPreset"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="+ Tambah preset baru" />
+                android:layout_marginTop="14dp"
+                android:paddingVertical="12dp"
+                android:background="@drawable/bg_pill_outline"
+                android:gravity="center"
+                android:text="+ Tambah preset baru"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <!-- Form tambah preset: 3 kotak input jam:menit:detik -->
+            <LinearLayout
+                android:id="@+id/addPresetForm"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="14dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="10dp">
+
+                    <EditText
+                        android:id="@+id/addHours"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_box"
+                        android:gravity="center"
+                        android:text="00"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:paddingVertical="12dp"
+                        android:inputType="number"
+                        android:maxLength="2" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="6dp"
+                        android:text=":"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="20sp" />
+
+                    <EditText
+                        android:id="@+id/addMinutes"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_box"
+                        android:gravity="center"
+                        android:text="00"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:paddingVertical="12dp"
+                        android:inputType="number"
+                        android:maxLength="2" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="6dp"
+                        android:text=":"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="20sp" />
+
+                    <EditText
+                        android:id="@+id/addSeconds"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_box"
+                        android:gravity="center"
+                        android:text="00"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:paddingVertical="12dp"
+                        android:inputType="number"
+                        android:maxLength="2" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/addPresetError"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textColor="@color/accent"
+                    android:textSize="12sp"
+                    android:layout_marginBottom="10dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btnAddCancel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:paddingVertical="12dp"
+                        android:background="@drawable/bg_pill_outline"
+                        android:gravity="center"
+                        android:text="Batal"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:clickable="true"
+                        android:focusable="true" />
+
+                    <TextView
+                        android:id="@+id/btnAddConfirm"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:paddingVertical="12dp"
+                        android:background="@drawable/bg_pill_accent"
+                        android:gravity="center"
+                        android:text="Tambah"
+                        android:textColor="@color/on_accent"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:clickable="true"
+                        android:focusable="true" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Muncul saat mode Stopwatch aktif, menggantikan seksi preset -->

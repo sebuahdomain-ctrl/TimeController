@@ -1,10 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="64dp"
-    android:layout_height="64dp"
-    android:layout_margin="5dp"
-    android:background="@drawable/bg_preset_circle"
-    android:gravity="center"
-    android:textSize="12sp"
-    android:textColor="@color/text_primary"
-    android:text="5 mnt" />
+<!-- Satu item preset: lingkaran label durasi + tombol hapus kecil (muncul saat mode edit).
+     FrameLayout supaya tombol hapus bisa menumpuk di pojok kanan-atas lingkaran. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/presetItemRoot"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
+    android:layout_margin="5dp">
+
+    <TextView
+        android:id="@+id/presetCircleLabel"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_preset_circle"
+        android:gravity="center"
+        android:textSize="12sp"
+        android:textColor="@color/text_primary"
+        android:clickable="true"
+        android:focusable="true"
+        android:text="5 mnt" />
+
+    <TextView
+        android:id="@+id/presetDeleteBadge"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_gravity="top|end"
+        android:background="@drawable/bg_circle_btn_accent"
+        android:gravity="center"
+        android:text="\u00D7"
+        android:textColor="@color/on_accent"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true" />
+
+</FrameLayout>

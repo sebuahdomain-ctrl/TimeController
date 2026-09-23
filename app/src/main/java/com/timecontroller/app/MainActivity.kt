@@ -1,6 +1,7 @@
 package com.timecontroller.app
 
 import android.Manifest
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -11,11 +12,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.provider.Settings
-import android.view.LayoutInflater
+import android.view.DragEvent
+import android.view.View
+import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -25,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private var currentMode = TimeService.Mode.TIMER
     private var boundService: TimeService? = null
     private var isBound = false
+    private var editMode = false
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -49,9 +53,39 @@ class MainActivity : AppCompatActivity() {
     private var refreshTabsExternal: (() -> Unit)? = null
 
     private fun refreshTimeDisplay() {
-        val display = findViewById<TextView>(R.id.mainTimeDisplay)
-        boundService?.let {
-            display.text = it.formatCurrentTime()
+        val service = boundService ?: return
+
+        val mainTimeDisplay = findViewById<TextView>(R.id.mainTimeDisplay)
+        val swTimeDisplay = findViewById<TextView>(R.id.swTimeDisplay)
+        val timerSubLabel = findViewById<TextView>(R.id.timerSubLabel)
+        val statusLabel = findViewById<TextView>(R.id.statusLabel)
+        val ringView = findViewById<TimerRingView>(R.id.timerRingView)
+        val dialView = findViewById<StopwatchDialView>(R.id.stopwatchDialView)
+        val playPauseText = findViewById<TextView>(R.id.btnPlayPause)
+        val swPrimaryText = findViewById<TextView>(R.id.btnSwPrimary)
+
+        val runState = service.getCurrentRunState()
+        val isRunning = runState == TimeService.RunState.RUNNING
+
+        statusLabel.text = when (runState) {
+            TimeService.RunState.RUNNING -> "Berjalan"
+            TimeService.RunState.PAUSED -> "Jeda"
+            TimeService.RunState.FINISHED -> "Selesai"
+            TimeService.RunState.IDLE -> "Siap"
+        }
+
+        if (currentMode == TimeService.Mode.TIMER) {
+            val remaining = service.getDisplayMillis()
+            val total = service.getTimerTotalMillis().coerceAtLeast(1L)
+            mainTimeDisplay.text = service.formatCurrentTime()
+            timerSubLabel.text = "dari " + service.formatMillisPublic(total)
+            ringView.progress = remaining.toFloat() / total.toFloat()
+            playPauseText.text = if (isRunning) "\u2759\u2759" else "\u25B6"
+        } else {
+            val elapsedMillis = service.getDisplayMillis()
+            swTimeDisplay.text = service.formatCurrentTime()
+            dialView.elapsedSeconds = elapsedMillis / 1000f
+            swPrimaryText.text = if (isRunning) "Jeda" else "Mulai"
         }
     }
 
@@ -67,15 +101,28 @@ class MainActivity : AppCompatActivity() {
 
         val presetSection = findViewById<LinearLayout>(R.id.presetSection)
         val stopwatchHint = findViewById<TextView>(R.id.stopwatchHint)
+        val ringWrap = findViewById<FrameLayout>(R.id.ringWrap)
+        val dialWrap = findViewById<FrameLayout>(R.id.dialWrap)
+        val timerControls = findViewById<LinearLayout>(R.id.timerControls)
+        val stopwatchControls = findViewById<LinearLayout>(R.id.stopwatchControls)
+        val settingsPanel = findViewById<LinearLayout>(R.id.settingsPanel)
 
         fun refreshTabs() {
             tabTimer.setBackgroundResource(if (currentMode == TimeService.Mode.TIMER) R.drawable.bg_time_box else 0)
             tabTimer.setTextColor(ContextCompat.getColor(this, if (currentMode == TimeService.Mode.TIMER) R.color.text_primary else R.color.text_secondary))
             tabStopwatch.setBackgroundResource(if (currentMode == TimeService.Mode.STOPWATCH) R.drawable.bg_time_box else 0)
             tabStopwatch.setTextColor(ContextCompat.getColor(this, if (currentMode == TimeService.Mode.STOPWATCH) R.color.text_primary else R.color.text_secondary))
+
+            val isTimer = currentMode == TimeService.Mode.TIMER
+            ringWrap.visibility = if (isTimer) View.VISIBLE else View.GONE
+            dialWrap.visibility = if (isTimer) View.GONE else View.VISIBLE
+            timerControls.visibility = if (isTimer) View.VISIBLE else View.GONE
+            stopwatchControls.visibility = if (isTimer) View.GONE else View.VISIBLE
             // Preset hanya relevan untuk mode Timer; sembunyikan otomatis saat Stopwatch aktif.
-            presetSection.visibility = if (currentMode == TimeService.Mode.STOPWATCH) android.view.View.GONE else android.view.View.VISIBLE
-            stopwatchHint.visibility = if (currentMode == TimeService.Mode.STOPWATCH) android.view.View.VISIBLE else android.view.View.GONE
+            presetSection.visibility = if (isTimer) View.VISIBLE else View.GONE
+            stopwatchHint.visibility = if (isTimer) View.GONE else View.VISIBLE
+            if (!isTimer) settingsPanel.visibility = View.GONE
+
             refreshTimeDisplay()
         }
         refreshTabs()
@@ -96,10 +143,35 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.startForegroundService(this, intent)
         }
 
-        findViewById<android.widget.Button>(R.id.btnPlayPause).setOnClickListener {
+        findViewById<TextView>(R.id.btnPlayPause).setOnClickListener {
+            val isRunning = boundService?.getCurrentRunState() == TimeService.RunState.RUNNING
             val intent = Intent(this, TimeService::class.java)
-            intent.action = if (currentMode == TimeService.Mode.TIMER) {
+            intent.action = if (isRunning) {
+                TimeService.ACTION_PAUSE
+            } else if (boundService?.getCurrentRunState() == TimeService.RunState.PAUSED) {
+                TimeService.ACTION_RESUME
+            } else {
                 TimeService.ACTION_START_TIMER
+            }
+            ContextCompat.startForegroundService(this, intent)
+            refreshTimeDisplay()
+        }
+
+        findViewById<TextView>(R.id.btnReset).setOnClickListener {
+            val intent = Intent(this, TimeService::class.java)
+            intent.action = TimeService.ACTION_RESET
+            ContextCompat.startForegroundService(this, intent)
+            refreshTimeDisplay()
+        }
+
+        // Tombol utama Stopwatch: mulai / jeda
+        findViewById<TextView>(R.id.btnSwPrimary).setOnClickListener {
+            val isRunning = boundService?.getCurrentRunState() == TimeService.RunState.RUNNING
+            val intent = Intent(this, TimeService::class.java)
+            intent.action = if (isRunning) {
+                TimeService.ACTION_PAUSE
+            } else if (boundService?.getCurrentRunState() == TimeService.RunState.PAUSED) {
+                TimeService.ACTION_RESUME
             } else {
                 TimeService.ACTION_START_STOPWATCH
             }
@@ -107,16 +179,41 @@ class MainActivity : AppCompatActivity() {
             refreshTimeDisplay()
         }
 
-        findViewById<android.widget.Button>(R.id.btnReset).setOnClickListener {
+        // Tombol sekunder Stopwatch: reset
+        findViewById<TextView>(R.id.btnSwSecondary).setOnClickListener {
             val intent = Intent(this, TimeService::class.java)
             intent.action = TimeService.ACTION_RESET
             ContextCompat.startForegroundService(this, intent)
             refreshTimeDisplay()
         }
 
-        findViewById<android.widget.Button>(R.id.btnAddPreset).setOnClickListener {
-            showAddPresetDialog()
+        findViewById<TextView>(R.id.btnSettings).setOnClickListener {
+            settingsPanel.visibility = if (settingsPanel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
+
+        val editToggle = findViewById<TextView>(R.id.editToggle)
+        editToggle.setOnClickListener {
+            editMode = !editMode
+            editToggle.text = if (editMode) "Selesai" else "Edit"
+            editToggle.setTextColor(
+                ContextCompat.getColor(this, if (editMode) R.color.text_primary else R.color.accent)
+            )
+            findViewById<TextView>(R.id.presetHint).visibility = if (editMode) View.VISIBLE else View.GONE
+            loadPresetList()
+        }
+
+        findViewById<TextView>(R.id.btnAddPreset).setOnClickListener {
+            openAddPresetForm()
+        }
+        findViewById<TextView>(R.id.btnAddCancel).setOnClickListener {
+            closeAddPresetForm()
+        }
+        findViewById<TextView>(R.id.btnAddConfirm).setOnClickListener {
+            confirmAddPreset()
+        }
+        setupTimeInputBox(findViewById(R.id.addHours))
+        setupTimeInputBox(findViewById(R.id.addMinutes))
+        setupTimeInputBox(findViewById(R.id.addSeconds))
 
         loadPresetList()
     }
@@ -140,54 +237,71 @@ class MainActivity : AppCompatActivity() {
         loadPresetList()
     }
 
-    /** Menampilkan dialog kecil untuk membuat preset kustom baru (tetap di dalam app). */
-    private fun showAddPresetDialog() {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(48, 24, 48, 24)
-        }
-        val minutesInput = android.widget.EditText(this).apply {
-            hint = "Menit"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        val secondsInput = android.widget.EditText(this).apply {
-            hint = "Detik"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-        }
-        container.addView(minutesInput)
-        container.addView(secondsInput)
+    // ---------- Form tambah preset (3 kotak jam:menit:detik) ----------
 
-        AlertDialog.Builder(this)
-            .setTitle("Preset baru")
-            .setView(container)
-            .setPositiveButton("Simpan") { _, _ ->
-                val minutes = minutesInput.text.toString().toIntOrNull() ?: 0
-                val seconds = secondsInput.text.toString().toIntOrNull() ?: 0
-                val total = minutes * 60 + seconds
-                if (total > 0) {
-                    PresetStore.addPreset(this, total)
-                    loadPresetList()
-                }
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+    private fun openAddPresetForm() {
+        findViewById<LinearLayout>(R.id.addPresetForm).visibility = View.VISIBLE
+        findViewById<TextView>(R.id.addPresetError).text = ""
     }
 
+    private fun closeAddPresetForm() {
+        findViewById<LinearLayout>(R.id.addPresetForm).visibility = View.GONE
+        findViewById<TextView>(R.id.addPresetError).text = ""
+        findViewById<EditText>(R.id.addHours).setText("00")
+        findViewById<EditText>(R.id.addMinutes).setText("00")
+        findViewById<EditText>(R.id.addSeconds).setText("00")
+    }
+
+    private fun confirmAddPreset() {
+        val h = findViewById<EditText>(R.id.addHours).text.toString().toIntOrNull() ?: 0
+        val m = findViewById<EditText>(R.id.addMinutes).text.toString().toIntOrNull() ?: 0
+        val s = findViewById<EditText>(R.id.addSeconds).text.toString().toIntOrNull() ?: 0
+        val total = h * 3600 + m * 60 + s
+
+        if (total <= 0) {
+            findViewById<TextView>(R.id.addPresetError).text = "Atur waktu lebih dari 0 detik"
+            return
+        }
+        PresetStore.addPreset(this, total)
+        closeAddPresetForm()
+        loadPresetList()
+    }
+
+    /** Menjaga input hanya angka dan maksimal 2 digit, meniru kotak jam/menit/detik di mockup. */
+    private fun setupTimeInputBox(editText: EditText) {
+        editText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val value = editText.text.toString()
+                editText.setText(
+                    when {
+                        value.isEmpty() -> "00"
+                        value.length == 1 -> "0$value"
+                        else -> value.take(2)
+                    }
+                )
+            }
+        }
+    }
+
+    // ---------- Daftar preset: render, mode edit, drag & drop reorder ----------
+
     private fun loadPresetList() {
-        val container = findViewById<LinearLayout>(R.id.customPresetList)
+        val container = findViewById<FlowRowLayout>(R.id.customPresetList)
         container.removeAllViews()
         val presets = PresetStore.getPresets(this)
 
         presets.forEach { preset ->
-            val row = LayoutInflater.from(this)
-                .inflate(R.layout.item_custom_preset_row, container, false)
-            row.findViewById<TextView>(R.id.presetRowLabel).text = preset.label()
+            val itemRoot = layoutInflater.inflate(R.layout.item_preset_circle, container, false)
+            val label = itemRoot.findViewById<TextView>(R.id.presetCircleLabel)
+            val deleteBadge = itemRoot.findViewById<TextView>(R.id.presetDeleteBadge)
 
-            // Tap di baris preset (selain tombol Hapus) langsung pakai preset itu:
-            // set mode ke Timer, isi durasinya, dan mulai timer-nya.
-            row.setOnClickListener {
+            label.text = preset.label()
+            deleteBadge.visibility = if (editMode) View.VISIBLE else View.GONE
+            itemRoot.tag = preset.totalSeconds
+
+            // Tap lingkaran (bukan mode edit) langsung pakai preset itu untuk mulai timer.
+            label.setOnClickListener {
+                if (editMode) return@setOnClickListener
                 currentMode = TimeService.Mode.TIMER
                 refreshTabsExternal?.invoke()
                 val intent = Intent(this, TimeService::class.java)
@@ -198,12 +312,58 @@ class MainActivity : AppCompatActivity() {
                 refreshTimeDisplay()
             }
 
-            row.findViewById<TextView>(R.id.presetRowDelete).setOnClickListener {
+            // Tekan-tahan untuk mulai drag & drop reorder (hanya aktif di mode edit).
+            label.setOnLongClickListener { view ->
+                if (!editMode) return@setOnLongClickListener false
+                val clipData = ClipData.newPlainText("", "")
+                val shadow = View.DragShadowBuilder(itemRoot)
+                view.startDragAndDrop(clipData, shadow, itemRoot, 0)
+                itemRoot.alpha = 0.4f
+                true
+            }
+
+            deleteBadge.setOnClickListener {
                 PresetStore.removePreset(this, preset.totalSeconds)
                 loadPresetList()
             }
-            container.addView(row)
+
+            // Target drop: saat item lain dilepas di atasnya, tukar posisi keduanya.
+            itemRoot.setOnDragListener { targetView, event ->
+                when (event.action) {
+                    DragEvent.ACTION_DRAG_STARTED -> true
+                    DragEvent.ACTION_DROP -> {
+                        val draggedView = event.localState as? View
+                        if (draggedView != null && draggedView !== targetView) {
+                            val draggedSeconds = draggedView.tag as? Int
+                            val targetSeconds = targetView.tag as? Int
+                            if (draggedSeconds != null && targetSeconds != null) {
+                                swapPresetOrder(draggedSeconds, targetSeconds)
+                            }
+                        }
+                        true
+                    }
+                    DragEvent.ACTION_DRAG_ENDED -> {
+                        (event.localState as? View)?.alpha = 1f
+                        true
+                    }
+                    else -> true
+                }
+            }
+
+            container.addView(itemRoot)
         }
+    }
+
+    /** Menukar posisi dua preset (berdasarkan durasi detiknya) di daftar, lalu simpan urutan baru. */
+    private fun swapPresetOrder(secondsA: Int, secondsB: Int) {
+        val current = PresetStore.getPresets(this).map { it.totalSeconds }.toMutableList()
+        val indexA = current.indexOf(secondsA)
+        val indexB = current.indexOf(secondsB)
+        if (indexA == -1 || indexB == -1) return
+        current[indexA] = secondsB
+        current[indexB] = secondsA
+        PresetStore.reorderPresets(this, current)
+        loadPresetList()
     }
 
     /**

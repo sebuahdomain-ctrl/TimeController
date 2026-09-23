@@ -1,14 +1,16 @@
 <resources>
-    <color name="background">#121214</color>
-    <color name="surface">#1C1C1F</color>
-    <color name="surface_muted">#26262A</color>
+    <color name="background">#0A0A0A</color>
+    <color name="surface">#1C1C1E</color>
+    <color name="surface_muted">#1C1C1E</color>
+    <color name="surface_elevated">#2C2C2E</color>
     <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B7B6BC</color>
-    <color name="text_muted">#87868D</color>
-    <color name="border">#33333A</color>
-    <color name="accent">#378ADD</color>
-    <color name="accent_muted">#1E3A56</color>
-    <color name="accent_text">#7FC0FF</color>
+    <color name="text_secondary">#8E8E93</color>
+    <color name="text_muted">#636366</color>
+    <color name="border">#48484A</color>
+    <color name="accent">#E0344A</color>
+    <color name="accent_muted">#3A1216</color>
+    <color name="accent_text">#E0344A</color>
     <color name="on_accent">#FFFFFF</color>
+    <color name="ring_track">#2C2C2E</color>
     <color name="popup_scrim">#B3000000</color>
 </resources>
