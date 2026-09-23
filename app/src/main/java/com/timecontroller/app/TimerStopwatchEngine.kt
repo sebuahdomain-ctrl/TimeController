@@ -4,9 +4,8 @@ import android.os.Handler
 import android.os.Looper
 
 /**
- * Logic inti timer & stopwatch, dipisah dari UI supaya bisa dipakai
+ * Logic inti timer, dipisah dari UI supaya bisa dipakai
  * dari Service (berjalan terus di background) maupun dari popup overlay.
- * Perilakunya niru persis logic di desain HTML yang diberikan user.
  */
 object TimerStopwatchEngine {
 
@@ -24,30 +23,11 @@ object TimerStopwatchEngine {
     var timerIsRunning = false
         private set
 
-    // ===== State Stopwatch =====
-    var stopwatchElapsedMs: Long = 0
-        private set
-    var stopwatchIsRunning = false
-        private set
-    private var stopwatchStartUptimeMs: Long = 0
-    var stopwatchLapCount = 0
-        private set
-
-    // ===== State Preset (default 4, bisa ditambah hingga 8 & dihapus) =====
-    private val defaultPresets = listOf(1 to 0, 3 to 0, 5 to 0, 10 to 0)
-    var presets: MutableList<Pair<Int, Int>> = defaultPresets.toMutableList()
-        private set
-    var isPresetDeleteMode = false
-        private set
-
     // ===== Listener untuk update UI =====
     interface Listener {
         fun onTimerTick() {}
         fun onTimerFinished() {}
         fun onTimerStateChanged() {}
-        fun onStopwatchTick() {}
-        fun onStopwatchStateChanged() {}
-        fun onPresetsChanged() {}
     }
 
     private val listeners = mutableListOf<Listener>()
@@ -127,107 +107,13 @@ object TimerStopwatchEngine {
         listeners.forEach { it.onTimerStateChanged() }
     }
 
-    // ================= STOPWATCH =================
-
-    private val stopwatchRunnable = object : Runnable {
-        override fun run() {
-            if (!stopwatchIsRunning) return
-            stopwatchElapsedMs = android.os.SystemClock.elapsedRealtime() - stopwatchStartUptimeMs
-            listeners.forEach { it.onStopwatchTick() }
-            handler.postDelayed(this, 30)
-        }
-    }
-
-    fun toggleStopwatch() {
-        if (!stopwatchIsRunning) startStopwatch() else pauseStopwatch()
-    }
-
-    fun startStopwatch() {
-        stopwatchIsRunning = true
-        stopwatchStartUptimeMs = android.os.SystemClock.elapsedRealtime() - stopwatchElapsedMs
-        listeners.forEach { it.onStopwatchStateChanged() }
-        handler.postDelayed(stopwatchRunnable, 30)
-    }
-
-    fun pauseStopwatch() {
-        stopwatchIsRunning = false
-        handler.removeCallbacks(stopwatchRunnable)
-        listeners.forEach { it.onStopwatchStateChanged() }
-    }
-
-    fun resetStopwatch() {
-        pauseStopwatch()
-        stopwatchElapsedMs = 0
-        stopwatchLapCount = 0
-        listeners.forEach { it.onStopwatchStateChanged() }
-    }
-
-    fun recordLap() {
-        if (!stopwatchIsRunning) return
-        stopwatchLapCount++
-        listeners.forEach { it.onStopwatchStateChanged() }
-    }
-
-    /** Simulasi lompat +59m55d, sesuai testFastForwardStopwatch() di HTML (tap label judul stopwatch). */
-    fun testFastForwardStopwatch() {
-        stopwatchElapsedMs += 3595000
-        if (stopwatchIsRunning) {
-            stopwatchStartUptimeMs = android.os.SystemClock.elapsedRealtime() - stopwatchElapsedMs
-        }
-        listeners.forEach { it.onStopwatchTick() }
-    }
-
-    // ================= PRESET =================
-
-    fun applyPreset(min: Int, sec: Int) {
-        if (timerIsRunning) resetTimer()
-        setTimerDuration(min, sec)
-    }
-
-    fun togglePresetDeleteMode() {
-        if (presets.isEmpty() && !isPresetDeleteMode) return
-        isPresetDeleteMode = !isPresetDeleteMode
-        listeners.forEach { it.onPresetsChanged() }
-    }
-
-    fun deletePreset(index: Int) {
-        if (index < 0 || index >= presets.size) return
-        presets.removeAt(index)
-        if (presets.isEmpty()) isPresetDeleteMode = false
-        listeners.forEach { it.onPresetsChanged() }
-    }
-
-    fun restoreDefaultPresets() {
-        presets = defaultPresets.toMutableList()
-        isPresetDeleteMode = false
-        listeners.forEach { it.onPresetsChanged() }
-    }
-
-    /**
-     * Simpan preset baru. Return: true jika berhasil disimpan.
-     * false berarti gagal (00:00, duplikat, atau sudah 8 preset) - UI harus beri feedback beep gagal.
-     */
-    fun addPreset(min: Int, sec: Int): Boolean {
-        if (presets.size >= 8) return false
-        if (min == 0 && sec == 0) return false
-        val exists = presets.any { it.first == min && it.second == sec }
-        if (exists) return false
-        presets.add(min to sec)
-        presets.sortBy { it.first * 60 + it.second }
-        listeners.forEach { it.onPresetsChanged() }
-        return true
-    }
-
     // ================= RESET SEMUA (dipanggil saat service stop) =================
     fun resetAll() {
         pauseTimer()
-        pauseStopwatch()
         timerMinutes = 5
         timerSeconds = 0
         timerInitialTotalSec = 300
         timerRemainingSec = 300
-        stopwatchElapsedMs = 0
-        stopwatchLapCount = 0
     }
 
     fun formatTwoDigits(n: Int): String = n.toString().padStart(2, '0')

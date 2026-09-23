@@ -75,7 +75,7 @@ class WheelPicker @JvmOverloads constructor(
         }
 
         override fun onScroll(e1: MotionEvent?, e2: MotionEvent, distanceX: Float, distanceY: Float): Boolean {
-            scrollOffsetPx += distanceY
+            scrollOffsetPx -= distanceY
             invalidate()
             return true
         }
@@ -85,7 +85,7 @@ class WheelPicker @JvmOverloads constructor(
             scroller.forceFinished(true)
             scroller.fling(
                 0, scrollOffsetPx.roundToInt(),
-                0, velocityY.roundToInt(),
+                0, -velocityY.roundToInt(),
                 0, 0,
                 Int.MIN_VALUE, Int.MAX_VALUE
             )
