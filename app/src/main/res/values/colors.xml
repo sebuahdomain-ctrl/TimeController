@@ -19,5 +19,9 @@
     <color name="border_white_5">#0DFFFFFF</color>
     <color name="white_10">#1AFFFFFF</color>
 
+    <color name="red_400">#F87171</color>
+    <color name="red_300">#FCA5A5</color>
+    <color name="red_600">#DC2626</color>
+
     <color name="transparent">#00000000</color>
 </resources>

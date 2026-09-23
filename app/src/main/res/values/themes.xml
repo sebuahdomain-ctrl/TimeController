@@ -15,4 +15,12 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- Tema untuk NumberPicker (wheel menit/detik) supaya angka aktif putih tebal,
+         mendekati styling wheel di desain HTML (angka tengah solid & jernih). -->
+    <style name="WheelPickerTheme" parent="Theme.MaterialComponents.DayNight">
+        <item name="colorControlNormal">@color/text_gray</item>
+        <item name="android:textColorPrimary">@color/text_white</item>
+        <item name="android:colorControlNormal">@color/border_white_5</item>
+    </style>
 </resources>

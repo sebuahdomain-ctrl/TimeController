@@ -8,19 +8,33 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.GridLayout
+import android.widget.ImageView
+import android.widget.NumberPicker
 import android.widget.TextView
 
 /**
  * Mengelola dua jenis overlay window yang tampil di atas aplikasi lain:
  * 1. Popup pengaturan (Timer/Stopwatch) - dibuka dari tombol di notifikasi
  * 2. Alarm heads-up - muncul otomatis saat timer selesai, mirip alarm bawaan Android
+ *
+ * Semua interaksi, urutan tampilan, dan efek suara di sini meniru persis
+ * logic pada desain HTML popup terbaru (termasuk preset custom, mode hapus
+ * preset, dan view tambah preset baru).
  */
 object OverlayManager : TimerStopwatchEngine.Listener {
 
     private var popupView: View? = null
     private var alarmView: View? = null
     private var windowManager: WindowManager? = null
+
+    // Sub-state navigasi tab Timer (main / preset / tambah-preset), independen dari engine
+    private var inPresetView = false
+    private var inAddPresetView = false
+    private var newPresetMin = 0
+    private var newPresetSec = 0
+    private var activeTab = "timer" // "timer" | "stopwatch"
 
     private fun wm(context: Context): WindowManager {
         if (windowManager == null) {
@@ -52,7 +66,7 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         val view = inflater.inflate(R.layout.popup_overlay, null)
 
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -63,11 +77,18 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         params.x = 0
         params.y = 0
 
-        setupPopupInteractions(appContext, view, params)
+        // Reset navigasi sub-view setiap kali popup dibuka ulang
+        inPresetView = false
+        inAddPresetView = false
+        activeTab = "timer"
+
+        setupPickers(view)
+        setupPopupInteractions(appContext, view)
 
         wm(appContext).addView(view, params)
         popupView = view
         refreshPopupUI()
+        BeepPlayer.beep(800.0, 0.05, BeepPlayer.Wave.SINE)
     }
 
     fun hidePopup(context: Context) {
@@ -84,108 +105,357 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         if (popupView != null) hidePopup(context) else showPopup(context)
     }
 
-    private fun setupPopupInteractions(context: Context, view: View, params: WindowManager.LayoutParams) {
-        // Supaya popup bisa menerima sentuhan (perlu FLAG_NOT_FOCUSABLE dilepas saat interaksi teks,
-        // tapi untuk tombol biasa cukup begini karena kita pakai FLAG_NOT_FOCUSABLE agar tidak
-        // mencuri fokus dari aplikasi lain di belakangnya)
+    // ================= SETUP NUMBERPICKER (WHEEL) =================
+
+    private fun configureWheel(picker: NumberPicker) {
+        picker.minValue = 0
+        picker.maxValue = 59
+        picker.setFormatter { v -> TimerStopwatchEngine.formatTwoDigits(v) }
+        picker.wrapSelectorWheel = true
+        picker.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+    }
+
+    private fun setupPickers(view: View) {
+        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
+        val pickerNewMin = view.findViewById<NumberPicker>(R.id.pickerNewPresetMinute)
+        val pickerNewSec = view.findViewById<NumberPicker>(R.id.pickerNewPresetSecond)
+
+        listOf(pickerMin, pickerSec, pickerNewMin, pickerNewSec).forEach { configureWheel(it) }
+
+        pickerMin.value = TimerStopwatchEngine.timerMinutes
+        pickerSec.value = TimerStopwatchEngine.timerSeconds
+
+        // Sesuai logic onWheelScrolled('min'/'sec'): update state + beep nada pendek saat berhenti scroll
+        pickerMin.setOnValueChangedListener { _, _, newVal ->
+            if (TimerStopwatchEngine.timerIsRunning) return@setOnValueChangedListener
+            TimerStopwatchEngine.setWheelMinute(newVal)
+            BeepPlayer.beep(950.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+        }
+        pickerSec.setOnValueChangedListener { _, _, newVal ->
+            if (TimerStopwatchEngine.timerIsRunning) return@setOnValueChangedListener
+            TimerStopwatchEngine.setWheelSecond(newVal)
+            BeepPlayer.beep(1150.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+        }
+
+        pickerNewMin.setOnValueChangedListener { _, _, newVal ->
+            newPresetMin = newVal
+            BeepPlayer.beep(950.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+            updateNewPresetBadge(view)
+        }
+        pickerNewSec.setOnValueChangedListener { _, _, newVal ->
+            newPresetSec = newVal
+            BeepPlayer.beep(1150.0, 0.02, BeepPlayer.Wave.TRIANGLE)
+            updateNewPresetBadge(view)
+        }
+    }
+
+    private fun updateNewPresetBadge(view: View) {
+        view.findViewById<TextView>(R.id.newPresetTimeBadge).text =
+            "${TimerStopwatchEngine.formatTwoDigits(newPresetMin)}:${TimerStopwatchEngine.formatTwoDigits(newPresetSec)}"
+    }
+
+    // ================= INTERAKSI TOMBOL =================
+
+    private fun setupPopupInteractions(context: Context, view: View) {
         view.findViewById<View>(R.id.btnClosePopup).setOnClickListener {
+            BeepPlayer.beep(400.0, 0.05, BeepPlayer.Wave.SINE)
             hidePopup(context)
         }
 
         val tabTimer = view.findViewById<TextView>(R.id.tabTimerBtn)
         val tabStopwatch = view.findViewById<TextView>(R.id.tabStopwatchBtn)
-        val timerSection = view.findViewById<View>(R.id.timerSection)
+
+        tabTimer.setOnClickListener { switchTab(context, view, "timer") }
+        tabStopwatch.setOnClickListener { switchTab(context, view, "stopwatch") }
+
+        // ===== Timer main view =====
+        view.findViewById<View>(R.id.primaryTimerBtn).setOnClickListener {
+            val total = TimerStopwatchEngine.timerMinutes * 60 + TimerStopwatchEngine.timerSeconds
+            if (total <= 0 && !TimerStopwatchEngine.timerIsRunning) {
+                BeepPlayer.beep(300.0, 0.15, BeepPlayer.Wave.SAWTOOTH)
+                return@setOnClickListener
+            }
+            val wasRunning = TimerStopwatchEngine.timerIsRunning
+            TimerStopwatchEngine.toggleTimer()
+            BeepPlayer.beep(
+                if (!wasRunning) 1000.0 else 500.0,
+                if (!wasRunning) 0.06 else 0.06,
+                BeepPlayer.Wave.SINE
+            )
+        }
+        view.findViewById<View>(R.id.resetTimerBtn).setOnClickListener {
+            TimerStopwatchEngine.resetTimer()
+            BeepPlayer.beep(450.0, 0.06, BeepPlayer.Wave.SINE)
+        }
+        view.findViewById<View>(R.id.btnOpenPreset).setOnClickListener {
+            openPresetView(view)
+        }
+        view.findViewById<View>(R.id.btnBackFromPreset).setOnClickListener {
+            closePresetView(view, silent = false)
+        }
+        view.findViewById<View>(R.id.btnToggleDeletePreset).setOnClickListener {
+            TimerStopwatchEngine.togglePresetDeleteMode()
+            BeepPlayer.beep(
+                if (TimerStopwatchEngine.isPresetDeleteMode) 850.0 else 650.0,
+                0.04,
+                BeepPlayer.Wave.SINE
+            )
+        }
+
+        // ===== Tambah preset =====
+        view.findViewById<View>(R.id.btnCancelAddPreset).setOnClickListener {
+            closeAddPresetView(view)
+        }
+        view.findViewById<View>(R.id.btnSaveNewPreset).setOnClickListener {
+            saveNewPreset(view)
+        }
+
+        // ===== Stopwatch =====
+        view.findViewById<View>(R.id.swStartBtn).setOnClickListener {
+            val wasRunning = TimerStopwatchEngine.stopwatchIsRunning
+            TimerStopwatchEngine.toggleStopwatch()
+            BeepPlayer.beep(if (!wasRunning) 950.0 else 650.0, 0.05, BeepPlayer.Wave.SINE)
+        }
+        view.findViewById<View>(R.id.swLapBtn).setOnClickListener {
+            if (!TimerStopwatchEngine.stopwatchIsRunning) return@setOnClickListener
+            TimerStopwatchEngine.recordLap()
+            BeepPlayer.beep(1100.0, 0.03, BeepPlayer.Wave.SINE)
+        }
+        view.findViewById<View>(R.id.swResetBtn).setOnClickListener {
+            TimerStopwatchEngine.resetStopwatch()
+            BeepPlayer.beep(450.0, 0.06, BeepPlayer.Wave.SINE)
+        }
+        view.findViewById<View>(R.id.swFastForwardTap).setOnClickListener {
+            TimerStopwatchEngine.testFastForwardStopwatch()
+            BeepPlayer.beep(900.0, 0.04, BeepPlayer.Wave.SINE)
+        }
+
+        buildPresetGrid(context, view)
+    }
+
+    // ================= NAVIGASI TIMER: MAIN / PRESET / TAMBAH PRESET =================
+
+    private fun openPresetView(view: View) {
+        inPresetView = true
+        if (TimerStopwatchEngine.isPresetDeleteMode) TimerStopwatchEngine.togglePresetDeleteMode()
+        buildPresetGrid(view.context, view)
+        view.findViewById<View>(R.id.timerMainView).visibility = View.GONE
+        view.findViewById<View>(R.id.timerPresetView).visibility = View.VISIBLE
+        BeepPlayer.beep(700.0, 0.03, BeepPlayer.Wave.SINE)
+    }
+
+    private fun closePresetView(view: View, silent: Boolean) {
+        inPresetView = false
+        if (TimerStopwatchEngine.isPresetDeleteMode) TimerStopwatchEngine.togglePresetDeleteMode()
+        view.findViewById<View>(R.id.timerPresetView).visibility = View.GONE
+        view.findViewById<View>(R.id.timerMainView).visibility = View.VISIBLE
+        view.findViewById<NumberPicker>(R.id.pickerMinute).value = TimerStopwatchEngine.timerMinutes
+        view.findViewById<NumberPicker>(R.id.pickerSecond).value = TimerStopwatchEngine.timerSeconds
+        if (!silent) BeepPlayer.beep(550.0, 0.03, BeepPlayer.Wave.SINE)
+    }
+
+    private fun openAddPresetView(view: View) {
+        inAddPresetView = true
+        newPresetMin = 0
+        newPresetSec = 0
+        view.findViewById<NumberPicker>(R.id.pickerNewPresetMinute).value = 0
+        view.findViewById<NumberPicker>(R.id.pickerNewPresetSecond).value = 0
+        updateNewPresetBadge(view)
+
+        view.findViewById<View>(R.id.timerPresetView).visibility = View.GONE
+        view.findViewById<View>(R.id.timerAddPresetView).visibility = View.VISIBLE
+        BeepPlayer.beep(750.0, 0.03, BeepPlayer.Wave.SINE)
+    }
+
+    private fun closeAddPresetView(view: View) {
+        inAddPresetView = false
+        view.findViewById<View>(R.id.timerAddPresetView).visibility = View.GONE
+        view.findViewById<View>(R.id.timerPresetView).visibility = View.VISIBLE
+        BeepPlayer.beep(550.0, 0.03, BeepPlayer.Wave.SINE)
+    }
+
+    private fun saveNewPreset(view: View) {
+        if (TimerStopwatchEngine.presets.size >= 8) {
+            closeAddPresetView(view)
+            return
+        }
+        if (newPresetMin == 0 && newPresetSec == 0) {
+            BeepPlayer.beep(300.0, 0.15, BeepPlayer.Wave.SAWTOOTH)
+            val badge = view.findViewById<TextView>(R.id.newPresetTimeBadge)
+            badge.setTextColor(android.graphics.Color.parseColor("#FCA5A5"))
+            badge.postDelayed({
+                badge.setTextColor(view.context.getColor(R.color.text_white))
+            }, 400)
+            return
+        }
+        val exists = TimerStopwatchEngine.presets.any { it.first == newPresetMin && it.second == newPresetSec }
+        if (exists) {
+            BeepPlayer.beep(400.0, 0.1, BeepPlayer.Wave.SAWTOOTH)
+            closeAddPresetView(view)
+            return
+        }
+        TimerStopwatchEngine.addPreset(newPresetMin, newPresetSec)
+        closeAddPresetView(view)
+        buildPresetGrid(view.context, view)
+        BeepPlayer.beep(1000.0, 0.06, BeepPlayer.Wave.SINE)
+    }
+
+    private fun applyPreset(view: View, min: Int, sec: Int) {
+        if (TimerStopwatchEngine.isPresetDeleteMode) return
+        TimerStopwatchEngine.applyPreset(min, sec)
+        closePresetView(view, silent = true)
+        BeepPlayer.beep(900.0, 0.04, BeepPlayer.Wave.SINE)
+    }
+
+    // ================= TAB SWITCH =================
+
+    private fun switchTab(context: Context, view: View, tabName: String) {
+        activeTab = tabName
+        val tabTimer = view.findViewById<TextView>(R.id.tabTimerBtn)
+        val tabStopwatch = view.findViewById<TextView>(R.id.tabStopwatchBtn)
+        val timerMainView = view.findViewById<View>(R.id.timerMainView)
+        val timerPresetView = view.findViewById<View>(R.id.timerPresetView)
+        val timerAddPresetView = view.findViewById<View>(R.id.timerAddPresetView)
         val stopwatchSection = view.findViewById<View>(R.id.stopwatchSection)
 
-        tabTimer.setOnClickListener {
+        if (tabName == "timer") {
             tabTimer.setBackgroundResource(R.drawable.bg_tab_active)
             tabTimer.setTextColor(context.getColor(R.color.text_white))
             tabStopwatch.background = null
             tabStopwatch.setTextColor(context.getColor(R.color.text_gray))
-            timerSection.visibility = View.VISIBLE
             stopwatchSection.visibility = View.GONE
-        }
-        tabStopwatch.setOnClickListener {
+
+            when {
+                inAddPresetView -> {
+                    timerAddPresetView.visibility = View.VISIBLE
+                    timerPresetView.visibility = View.GONE
+                    timerMainView.visibility = View.GONE
+                }
+                inPresetView -> {
+                    timerPresetView.visibility = View.VISIBLE
+                    timerMainView.visibility = View.GONE
+                    timerAddPresetView.visibility = View.GONE
+                }
+                else -> {
+                    timerMainView.visibility = View.VISIBLE
+                    timerPresetView.visibility = View.GONE
+                    timerAddPresetView.visibility = View.GONE
+                }
+            }
+        } else {
             tabStopwatch.setBackgroundResource(R.drawable.bg_tab_active)
             tabStopwatch.setTextColor(context.getColor(R.color.text_white))
             tabTimer.background = null
             tabTimer.setTextColor(context.getColor(R.color.text_gray))
             stopwatchSection.visibility = View.VISIBLE
-            timerSection.visibility = View.GONE
-        }
-
-        // ===== Timer main view =====
-        val timerMainView = view.findViewById<View>(R.id.timerMainView)
-        val timerPresetView = view.findViewById<View>(R.id.timerPresetView)
-
-        view.findViewById<View>(R.id.boxMinute).setOnClickListener {
-            TimerStopwatchEngine.adjustTimerMinute(1)
-        }
-        view.findViewById<View>(R.id.boxSecond).setOnClickListener {
-            TimerStopwatchEngine.adjustTimerSecond(5)
-        }
-        view.findViewById<View>(R.id.primaryTimerBtn).setOnClickListener {
-            TimerStopwatchEngine.toggleTimer()
-        }
-        view.findViewById<View>(R.id.resetTimerBtn).setOnClickListener {
-            TimerStopwatchEngine.resetTimer()
-        }
-        view.findViewById<View>(R.id.btnOpenPreset).setOnClickListener {
             timerMainView.visibility = View.GONE
-            timerPresetView.visibility = View.VISIBLE
-        }
-        view.findViewById<View>(R.id.btnBackFromPreset).setOnClickListener {
             timerPresetView.visibility = View.GONE
-            timerMainView.visibility = View.VISIBLE
+            timerAddPresetView.visibility = View.GONE
         }
-
-        buildPresetGrid(context, view)
-
-        // ===== Stopwatch =====
-        view.findViewById<View>(R.id.swStartBtn).setOnClickListener {
-            TimerStopwatchEngine.toggleStopwatch()
-        }
-        view.findViewById<View>(R.id.swLapBtn).setOnClickListener {
-            TimerStopwatchEngine.recordLap()
-        }
-        view.findViewById<View>(R.id.swResetBtn).setOnClickListener {
-            TimerStopwatchEngine.resetStopwatch()
-        }
+        BeepPlayer.beep(700.0, 0.03, BeepPlayer.Wave.SINE)
     }
 
-    private val presets = listOf(1 to 0, 3 to 0, 5 to 0, 10 to 0, 15 to 0, 20 to 0, 25 to 0, 30 to 0)
+    // ================= GRID PRESET =================
 
     private fun buildPresetGrid(context: Context, view: View) {
         val grid = view.findViewById<GridLayout>(R.id.presetGrid)
         grid.removeAllViews()
         val inflater = LayoutInflater.from(context)
-        for ((min, sec) in presets) {
-            val btn = inflater.inflate(R.layout.item_preset, grid, false) as TextView
-            val label = "${TimerStopwatchEngine.formatTwoDigits(min)}:${TimerStopwatchEngine.formatTwoDigits(sec)}"
-            btn.text = label
-            val isActive = TimerStopwatchEngine.timerInitialTotalSec == (min * 60 + sec)
-            btn.setBackgroundResource(if (isActive) R.drawable.bg_preset_btn_active else R.drawable.bg_preset_btn)
-            btn.setOnClickListener {
-                TimerStopwatchEngine.setTimerDuration(min, sec)
-                view.findViewById<View>(R.id.timerPresetView).visibility = View.GONE
-                view.findViewById<View>(R.id.timerMainView).visibility = View.VISIBLE
-                refreshPopupUI()
+        val presets = TimerStopwatchEngine.presets
+        val deleteMode = TimerStopwatchEngine.isPresetDeleteMode
+
+        if (presets.isEmpty() && deleteMode) {
+            val empty = inflater.inflate(R.layout.preset_empty_state, grid, false)
+            val emptyParams = GridLayout.LayoutParams()
+            emptyParams.width = 0
+            emptyParams.height = GridLayout.LayoutParams.MATCH_PARENT
+            emptyParams.columnSpec = GridLayout.spec(0, 4, 1f)
+            emptyParams.rowSpec = GridLayout.spec(0, 2, 1f)
+            empty.layoutParams = emptyParams
+            empty.findViewById<View>(R.id.btnRestoreDefaultPresets).setOnClickListener {
+                TimerStopwatchEngine.restoreDefaultPresets()
+                buildPresetGrid(context, view)
+                BeepPlayer.beep(800.0, 0.05, BeepPlayer.Wave.SINE)
             }
-            grid.addView(btn)
+            grid.addView(empty)
+            return
+        }
+
+        presets.forEachIndexed { index, (min, sec) ->
+            val item = inflater.inflate(R.layout.item_preset, grid, false) as FrameLayout
+            val label = item.findViewById<TextView>(R.id.presetLabel)
+            val badge = item.findViewById<TextView>(R.id.presetDeleteBadge)
+            label.text = "${TimerStopwatchEngine.formatTwoDigits(min)}:${TimerStopwatchEngine.formatTwoDigits(sec)}"
+
+            val isCurrent = TimerStopwatchEngine.timerMinutes == min && TimerStopwatchEngine.timerSeconds == sec
+            label.setBackgroundResource(
+                when {
+                    deleteMode -> R.drawable.bg_preset_btn_delete_mode
+                    isCurrent -> R.drawable.bg_preset_btn_active
+                    else -> R.drawable.bg_preset_btn
+                }
+            )
+            badge.visibility = if (deleteMode) View.VISIBLE else View.GONE
+
+            item.setOnClickListener {
+                if (deleteMode) {
+                    TimerStopwatchEngine.deletePreset(index)
+                    buildPresetGrid(context, view)
+                    BeepPlayer.beep(420.0, 0.08, BeepPlayer.Wave.SAWTOOTH)
+                } else {
+                    applyPreset(view, min, sec)
+                    buildPresetGrid(context, view)
+                }
+            }
+
+            grid.addView(item)
+        }
+
+        // Tombol tambah (+): hanya saat bukan mode hapus & preset < 8
+        if (!deleteMode && presets.size < 8) {
+            val addItem = inflater.inflate(R.layout.item_preset_add, grid, false)
+            addItem.setOnClickListener { openAddPresetView(view) }
+            grid.addView(addItem)
+        }
+
+        updateDeleteButtonUI(view)
+    }
+
+    private fun updateDeleteButtonUI(view: View) {
+        val btn = view.findViewById<View>(R.id.btnToggleDeletePreset)
+        val text = view.findViewById<TextView>(R.id.deletePresetBtnText)
+        if (TimerStopwatchEngine.isPresetDeleteMode) {
+            btn.setBackgroundResource(R.drawable.bg_toggle_delete_active)
+            text.text = "Selesai"
+            text.setTextColor(view.context.getColor(R.color.red_300))
+        } else {
+            btn.setBackgroundResource(R.drawable.bg_toggle_delete)
+            text.text = "Hapus"
+            text.setTextColor(view.context.getColor(R.color.text_gray))
         }
     }
 
+    // ================= REFRESH UI PENUH =================
+
     private fun refreshPopupUI() {
         val view = popupView ?: return
-        view.findViewById<TextView>(R.id.minuteDisplay).text =
-            TimerStopwatchEngine.formatTwoDigits(TimerStopwatchEngine.timerMinutes)
-        view.findViewById<TextView>(R.id.secondDisplay).text =
-            TimerStopwatchEngine.formatTwoDigits(TimerStopwatchEngine.timerSeconds)
 
-        val primaryBtn = view.findViewById<TextView>(R.id.primaryTimerBtn)
-        primaryBtn.text = if (TimerStopwatchEngine.timerIsRunning) "JEDA" else "MULAI"
+        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
+        if (pickerMin.value != TimerStopwatchEngine.timerMinutes) pickerMin.value = TimerStopwatchEngine.timerMinutes
+        if (pickerSec.value != TimerStopwatchEngine.timerSeconds) pickerSec.value = TimerStopwatchEngine.timerSeconds
 
-        // Refresh preset highlight
+        val primaryText = view.findViewById<TextView>(R.id.primaryTimerText)
+        val primaryIcon = view.findViewById<ImageView>(R.id.primaryTimerIcon)
+        primaryText.text = if (TimerStopwatchEngine.timerIsRunning) "JEDA" else "MULAI"
+        primaryIcon.setImageResource(if (TimerStopwatchEngine.timerIsRunning) R.drawable.ic_pause else R.drawable.ic_play)
+
+        pickerMin.isEnabled = !TimerStopwatchEngine.timerIsRunning
+        pickerSec.isEnabled = !TimerStopwatchEngine.timerIsRunning
+        pickerMin.alpha = if (TimerStopwatchEngine.timerIsRunning) 0.85f else 1f
+        pickerSec.alpha = if (TimerStopwatchEngine.timerIsRunning) 0.85f else 1f
+
         buildPresetGrid(view.context, view)
 
         // Stopwatch
@@ -210,11 +480,14 @@ object OverlayManager : TimerStopwatchEngine.Listener {
             swMillis.text = TimerStopwatchEngine.formatTwoDigits(millis.toInt())
         }
 
-        val swStartBtn = view.findViewById<TextView>(R.id.swStartBtn)
-        swStartBtn.text = if (TimerStopwatchEngine.stopwatchIsRunning) "JEDA" else "MULAI"
+        val swStartText = view.findViewById<TextView>(R.id.swStartText)
+        val swStartIcon = view.findViewById<ImageView>(R.id.swStartIcon)
+        swStartText.text = if (TimerStopwatchEngine.stopwatchIsRunning) "JEDA" else "MULAI"
+        swStartIcon.setImageResource(if (TimerStopwatchEngine.stopwatchIsRunning) R.drawable.ic_pause else R.drawable.ic_play)
 
         val swLapBtn = view.findViewById<TextView>(R.id.swLapBtn)
         swLapBtn.alpha = if (TimerStopwatchEngine.stopwatchIsRunning) 1.0f else 0.4f
+        swLapBtn.isEnabled = TimerStopwatchEngine.stopwatchIsRunning
 
         view.findViewById<TextView>(R.id.lapCountBadge).text =
             "${TimerStopwatchEngine.stopwatchLapCount} Lap"
@@ -264,19 +537,28 @@ object OverlayManager : TimerStopwatchEngine.Listener {
 
     override fun onTimerTick() {
         val view = popupView ?: return
-        view.findViewById<TextView>(R.id.minuteDisplay).text =
-            TimerStopwatchEngine.formatTwoDigits(TimerStopwatchEngine.timerMinutes)
-        view.findViewById<TextView>(R.id.secondDisplay).text =
-            TimerStopwatchEngine.formatTwoDigits(TimerStopwatchEngine.timerSeconds)
+        val pickerMin = view.findViewById<NumberPicker>(R.id.pickerMinute)
+        val pickerSec = view.findViewById<NumberPicker>(R.id.pickerSecond)
+        if (pickerMin.value != TimerStopwatchEngine.timerMinutes) pickerMin.value = TimerStopwatchEngine.timerMinutes
+        if (pickerSec.value != TimerStopwatchEngine.timerSeconds) pickerSec.value = TimerStopwatchEngine.timerSeconds
     }
 
     override fun onTimerFinished() {
         val view = popupView
+        // Sesuai logic timerCompleted() di HTML: 3 beep nada naik (880, 880, 1174)
+        BeepPlayer.beep(880.0, 0.15, BeepPlayer.Wave.SINE)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            BeepPlayer.beep(880.0, 0.15, BeepPlayer.Wave.SINE)
+        }, 200)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            BeepPlayer.beep(1174.0, 0.35, BeepPlayer.Wave.SINE)
+        }, 420)
+
         view?.let {
-            it.findViewById<TextView>(R.id.primaryTimerBtn).text = "MULAI"
+            it.findViewById<TextView>(R.id.primaryTimerText).text = "MULAI"
+            it.findViewById<ImageView>(R.id.primaryTimerIcon).setImageResource(R.drawable.ic_play)
         }
-        // Timer mencapai 00:00 -> bunyikan alarm & tampilkan heads-up,
-        // lalu kembalikan durasi ke nilai awal (sesuai logic HTML timerCompleted()).
+        // Timer mencapai 00:00 -> tampilkan alarm heads-up, lalu kembalikan durasi ke nilai awal
         val context = view?.context ?: appContextRef
         context?.let {
             AlarmSoundPlayer.play(it)
@@ -299,5 +581,10 @@ object OverlayManager : TimerStopwatchEngine.Listener {
 
     override fun onStopwatchStateChanged() {
         refreshPopupUI()
+    }
+
+    override fun onPresetsChanged() {
+        val view = popupView ?: return
+        buildPresetGrid(view.context, view)
     }
 }

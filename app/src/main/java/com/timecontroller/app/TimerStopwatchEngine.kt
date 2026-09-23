@@ -33,6 +33,13 @@ object TimerStopwatchEngine {
     var stopwatchLapCount = 0
         private set
 
+    // ===== State Preset (default 4, bisa ditambah hingga 8 & dihapus) =====
+    private val defaultPresets = listOf(1 to 0, 3 to 0, 5 to 0, 10 to 0)
+    var presets: MutableList<Pair<Int, Int>> = defaultPresets.toMutableList()
+        private set
+    var isPresetDeleteMode = false
+        private set
+
     // ===== Listener untuk update UI =====
     interface Listener {
         fun onTimerTick() {}
@@ -40,6 +47,7 @@ object TimerStopwatchEngine {
         fun onTimerStateChanged() {}
         fun onStopwatchTick() {}
         fun onStopwatchStateChanged() {}
+        fun onPresetsChanged() {}
     }
 
     private val listeners = mutableListOf<Listener>()
@@ -79,20 +87,16 @@ object TimerStopwatchEngine {
         listeners.forEach { it.onTimerStateChanged() }
     }
 
-    fun adjustTimerMinute(delta: Int) {
+    /** Set menit langsung dari wheel picker (0-59), sesuai logic onWheelScrolled('min') di HTML. */
+    fun setWheelMinute(min: Int) {
         if (timerIsRunning) return
-        var newMin = timerMinutes + delta
-        if (newMin < 0) newMin = 99
-        if (newMin > 99) newMin = 0
-        setTimerDuration(newMin, timerSeconds)
+        setTimerDuration(min.coerceIn(0, 59), timerSeconds)
     }
 
-    fun adjustTimerSecond(delta: Int) {
+    /** Set detik langsung dari wheel picker (0-59), sesuai logic onWheelScrolled('sec') di HTML. */
+    fun setWheelSecond(sec: Int) {
         if (timerIsRunning) return
-        var newSec = timerSeconds + delta
-        if (newSec < 0) newSec = 55
-        if (newSec >= 60) newSec = 0
-        setTimerDuration(timerMinutes, newSec)
+        setTimerDuration(timerMinutes, sec.coerceIn(0, 59))
     }
 
     fun toggleTimer() {
@@ -162,6 +166,56 @@ object TimerStopwatchEngine {
         if (!stopwatchIsRunning) return
         stopwatchLapCount++
         listeners.forEach { it.onStopwatchStateChanged() }
+    }
+
+    /** Simulasi lompat +59m55d, sesuai testFastForwardStopwatch() di HTML (tap label judul stopwatch). */
+    fun testFastForwardStopwatch() {
+        stopwatchElapsedMs += 3595000
+        if (stopwatchIsRunning) {
+            stopwatchStartUptimeMs = android.os.SystemClock.elapsedRealtime() - stopwatchElapsedMs
+        }
+        listeners.forEach { it.onStopwatchTick() }
+    }
+
+    // ================= PRESET =================
+
+    fun applyPreset(min: Int, sec: Int) {
+        if (timerIsRunning) resetTimer()
+        setTimerDuration(min, sec)
+    }
+
+    fun togglePresetDeleteMode() {
+        if (presets.isEmpty() && !isPresetDeleteMode) return
+        isPresetDeleteMode = !isPresetDeleteMode
+        listeners.forEach { it.onPresetsChanged() }
+    }
+
+    fun deletePreset(index: Int) {
+        if (index < 0 || index >= presets.size) return
+        presets.removeAt(index)
+        if (presets.isEmpty()) isPresetDeleteMode = false
+        listeners.forEach { it.onPresetsChanged() }
+    }
+
+    fun restoreDefaultPresets() {
+        presets = defaultPresets.toMutableList()
+        isPresetDeleteMode = false
+        listeners.forEach { it.onPresetsChanged() }
+    }
+
+    /**
+     * Simpan preset baru. Return: true jika berhasil disimpan.
+     * false berarti gagal (00:00, duplikat, atau sudah 8 preset) - UI harus beri feedback beep gagal.
+     */
+    fun addPreset(min: Int, sec: Int): Boolean {
+        if (presets.size >= 8) return false
+        if (min == 0 && sec == 0) return false
+        val exists = presets.any { it.first == min && it.second == sec }
+        if (exists) return false
+        presets.add(min to sec)
+        presets.sortBy { it.first * 60 + it.second }
+        listeners.forEach { it.onPresetsChanged() }
+        return true
     }
 
     // ================= RESET SEMUA (dipanggil saat service stop) =================
