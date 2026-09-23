@@ -113,6 +113,33 @@ object OverlayManager : TimerStopwatchEngine.Listener {
         picker.setFormatter { v -> TimerStopwatchEngine.formatTwoDigits(v) }
         picker.wrapSelectorWheel = true
         picker.descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        styleWheelLikeDesign(picker)
+    }
+
+    /**
+     * NumberPicker bawaan Android menampilkan 2 garis divider + EditText internal
+     * berlatar putih - keduanya membuat kotak menit/detik terlihat beda jauh dari
+     * kotak gelap polos (bg_box) pada desain HTML. Fungsi ini menghilangkan
+     * keduanya (dengan try-catch supaya aman kalau field privat berubah di versi
+     * Android tertentu) supaya tampilannya mendekati desain.
+     */
+    private fun styleWheelLikeDesign(picker: NumberPicker) {
+        try {
+            val dividerField = NumberPicker::class.java.getDeclaredField("mSelectionDivider")
+            dividerField.isAccessible = true
+            dividerField.set(picker, null)
+        } catch (e: Exception) {
+            // OEM/versi Android tertentu bisa menolak akses field ini - divider bawaan tetap tampil, tidak fatal
+        }
+
+        picker.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        for (i in 0 until picker.childCount) {
+            val child = picker.getChildAt(i)
+            if (child is android.widget.EditText) {
+                child.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                child.setTextColor(picker.context.getColor(R.color.text_white))
+            }
+        }
     }
 
     private fun setupPickers(view: View) {
