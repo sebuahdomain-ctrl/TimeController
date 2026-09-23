@@ -33,14 +33,26 @@ class TimeService : Service() {
     // Stopwatch
     private var stopwatchElapsedMillis: Long = 0L
     private var stopwatchStartTick: Long = 0L
+    // Detik terakhir yang sudah dikirim ke notifikasi, supaya notifikasi (berat,
+    // sistem-level) tetap update 1x/detik walau UI di-refresh jauh lebih sering.
+    private var lastNotifiedSecond: Long = -1L
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private val stopwatchTickRunnable = object : Runnable {
         override fun run() {
             if (runState == RunState.RUNNING && mode == Mode.STOPWATCH) {
                 stopwatchElapsedMillis = SystemClock.elapsedRealtime() - stopwatchStartTick
-                updateNotification()
+
+                // Notifikasi cukup di-update 1x/detik (biar hemat baterai & tidak
+                // spam sistem), tapi callback UI (onUpdate) tetap dipanggil tiap
+                // tick cepat supaya titik dial & angka per-seratus detik terlihat
+                // berputar/menghitung mulus, bukan patah-patah tiap detik.
+                val currentSecond = stopwatchElapsedMillis / 1000
+                if (currentSecond != lastNotifiedSecond) {
+                    lastNotifiedSecond = currentSecond
+                    updateNotification()
+                }
                 onUpdate?.invoke()
-                handler.postDelayed(this, 1000)
+                handler.postDelayed(this, STOPWATCH_TICK_INTERVAL_MS)
             }
         }
     }
@@ -127,6 +139,8 @@ class TimeService : Service() {
     private fun startStopwatch() {
         runState = RunState.RUNNING
         stopwatchStartTick = SystemClock.elapsedRealtime() - stopwatchElapsedMillis
+        // Paksa notifikasi ter-update di tick pertama setelah mulai/lanjut.
+        lastNotifiedSecond = -1L
         handler.post(stopwatchTickRunnable)
         onUpdate?.invoke()
     }
@@ -157,6 +171,7 @@ class TimeService : Service() {
             timerRemainingMillis = timerTotalMillis
         } else {
             stopwatchElapsedMillis = 0L
+            lastNotifiedSecond = -1L
         }
         runState = RunState.IDLE
         updateNotification()
@@ -291,5 +306,10 @@ class TimeService : Service() {
 
         const val EXTRA_MINUTES = "extra_minutes"
         const val EXTRA_SECONDS = "extra_seconds"
+
+        // Interval refresh UI stopwatch (dial + angka per-seratus detik).
+        // 30ms (~33x/detik) cukup mulus di mata tapi tidak terlalu boros
+        // dibanding update tiap 16ms (60x/detik).
+        const val STOPWATCH_TICK_INTERVAL_MS = 30L
     }
 }

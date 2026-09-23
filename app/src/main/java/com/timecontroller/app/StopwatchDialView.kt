@@ -53,7 +53,10 @@ class StopwatchDialView @JvmOverloads constructor(
         val cy = height / 2f
         val radius = (width.coerceAtMost(height) / 2f) * 0.94f
         val tickRadius = radius * 0.90f
-        val dotOrbitRadius = radius * 0.94f
+        // Orbit titik disamakan persis dengan radius ujung luar tick (tickRadius),
+        // bukan radius sendiri (0.94f) yang sebelumnya bikin titik "ngambang" agak
+        // keluar dari lingkaran tick alih-alih pas menempel di garisnya.
+        val dotOrbitRadius = tickRadius
         val dotRadius = density * 4.5f
 
         // 60 tick, tebal & terang tiap kelipatan 5 (menandai detik ke-5, 10, 15, ...)
