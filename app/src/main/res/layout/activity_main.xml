@@ -95,35 +95,54 @@
                 android:text="Mulai" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Seksi Preset kustom, disembunyikan otomatis saat mode Stopwatch aktif -->
+        <LinearLayout
+            android:id="@+id/presetSection"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Preset kustom"
-            android:textColor="@color/text_primary"
-            android:textStyle="bold"
-            android:layout_marginBottom="10dp" />
+            android:orientation="vertical">
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Preset kustom"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kelola daftar preset durasi yang muncul di popup pengaturan."
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"
+                android:layout_marginBottom="14dp" />
+
+            <!-- Daftar preset kustom, diisi secara dinamis lewat kode -->
+            <LinearLayout
+                android:id="@+id/customPresetList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="14dp" />
+
+            <Button
+                android:id="@+id/btnAddPreset"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="+ Tambah preset baru" />
+        </LinearLayout>
+
+        <!-- Muncul saat mode Stopwatch aktif, menggantikan seksi preset -->
         <TextView
-            android:layout_width="wrap_content"
+            android:id="@+id/stopwatchHint"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Kelola daftar preset durasi yang muncul di popup pengaturan."
+            android:gravity="center"
+            android:text="Preset hanya berlaku untuk mode timer"
             android:textColor="@color/text_secondary"
             android:textSize="13sp"
-            android:layout_marginBottom="14dp" />
-
-        <!-- Daftar preset kustom, diisi secara dinamis lewat kode -->
-        <LinearLayout
-            android:id="@+id/customPresetList"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginBottom="14dp" />
-
-        <Button
-            android:id="@+id/btnAddPreset"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="+ Tambah preset baru" />
+            android:visibility="gone" />
 
     </LinearLayout>
 </ScrollView>

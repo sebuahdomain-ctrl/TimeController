@@ -65,9 +65,17 @@ class MainActivity : AppCompatActivity() {
         val tabTimer = findViewById<TextView>(R.id.tabTimer)
         val tabStopwatch = findViewById<TextView>(R.id.tabStopwatch)
 
+        val presetSection = findViewById<LinearLayout>(R.id.presetSection)
+        val stopwatchHint = findViewById<TextView>(R.id.stopwatchHint)
+
         fun refreshTabs() {
             tabTimer.setBackgroundResource(if (currentMode == TimeService.Mode.TIMER) R.drawable.bg_time_box else 0)
+            tabTimer.setTextColor(ContextCompat.getColor(this, if (currentMode == TimeService.Mode.TIMER) R.color.text_primary else R.color.text_secondary))
             tabStopwatch.setBackgroundResource(if (currentMode == TimeService.Mode.STOPWATCH) R.drawable.bg_time_box else 0)
+            tabStopwatch.setTextColor(ContextCompat.getColor(this, if (currentMode == TimeService.Mode.STOPWATCH) R.color.text_primary else R.color.text_secondary))
+            // Preset hanya relevan untuk mode Timer; sembunyikan otomatis saat Stopwatch aktif.
+            presetSection.visibility = if (currentMode == TimeService.Mode.STOPWATCH) android.view.View.GONE else android.view.View.VISIBLE
+            stopwatchHint.visibility = if (currentMode == TimeService.Mode.STOPWATCH) android.view.View.VISIBLE else android.view.View.GONE
             refreshTimeDisplay()
         }
         refreshTabs()
