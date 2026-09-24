@@ -11,4 +11,11 @@
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>
+
+    <!-- Tema platform (bukan tema app) untuk membungkus context Service lewat
+         ContextThemeWrapper saat inflate popup "Atur durasi", supaya
+         NumberPicker bawaan tampil dengan warna yang benar. Dipilih di kode
+         sesuai uiMode sistem (lihat OverlayPopupService). -->
+    <style name="Theme.Popup.Light" parent="@android:style/Theme.Material.Light" />
+    <style name="Theme.Popup.Dark" parent="@android:style/Theme.Material" />
 </resources>

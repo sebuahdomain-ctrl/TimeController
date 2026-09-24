@@ -13,7 +13,7 @@ import android.os.Bundle
  * Kalau tombolnya cuma BroadcastReceiver / Service, SystemUI membiarkan shade
  * tetap terbuka. Fokus jendela overlay TIDAK ada hubungannya dengan ini.
  *
- * Alurnya: tap "Buka" -> Activity ini start (shade menutup) -> minta
+ * Alurnya: tap "Atur" -> Activity ini start (shade menutup) -> minta
  * OverlayPopupService menampilkan popup -> Activity ini langsung finish(),
  * jadi app yang tadi dibuka user (WhatsApp, Chrome, dll) balik ke depan.
  */

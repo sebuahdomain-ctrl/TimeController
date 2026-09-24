@@ -2,18 +2,23 @@ package com.example.timerapp
 
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.util.TypedValue
+import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
+import android.widget.ImageButton
+import android.widget.NumberPicker
+import android.widget.TextView
 
 /**
- * Menampilkan popup sebagai jendela overlay di atas app lain
+ * Menampilkan popup "Atur durasi" sebagai jendela overlay di atas app lain
  * (WindowManager + TYPE_APPLICATION_OVERLAY), jadi app yang sedang
  * dibuka user tetap di depan.
  */
@@ -40,9 +45,23 @@ class OverlayPopupService : Service() {
 
     private fun showPopup() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val inflater = LayoutInflater.from(this)
+
+        // Popup di-inflate dari context Service, jadi tidak otomatis ikut
+        // tema DayNight seperti Activity. Bungkus context dengan tema
+        // platform (Theme.Material / Theme.Material.Light) sesuai uiMode
+        // sistem saat ini, supaya NumberPicker bawaan tampil dengan warna
+        // yang benar (lihat Theme.Popup.Dark / Theme.Popup.Light di themes.xml).
+        val isDarkMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val themeRes = if (isDarkMode) R.style.Theme_Popup_Dark else R.style.Theme_Popup_Light
+        val themedContext = ContextThemeWrapper(this, themeRes)
+
+        val inflater = LayoutInflater.from(themedContext)
         val view = inflater.inflate(R.layout.overlay_popup, null)
         popupView = view
+
+        setupNumberPickers(view)
+        setupClicks(view)
 
         val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY // wajib dari Android 8+
@@ -52,7 +71,7 @@ class OverlayPopupService : Service() {
         }
 
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            popupWidthPx(),
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
             0,
@@ -60,13 +79,74 @@ class OverlayPopupService : Service() {
         )
         params.gravity = Gravity.CENTER
 
-        val btnClose: Button = view.findViewById(R.id.btnClosePopup)
+        windowManager?.addView(view, params)
+    }
+
+    /** Lebar popup: 90% lebar layar, maksimal 340dp. */
+    private fun popupWidthPx(): Int {
+        val metrics = resources.displayMetrics
+        val maxWidthPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 340f, metrics)
+        return minOf(metrics.widthPixels * 0.9f, maxWidthPx).toInt()
+    }
+
+    /** Roda menit (0..99) dan detik (0..59), berputar, angka selalu 2 digit. */
+    private fun setupNumberPickers(view: View) {
+        val npMinute: NumberPicker = view.findViewById(R.id.npMinute)
+        val npSecond: NumberPicker = view.findViewById(R.id.npSecond)
+
+        configurePicker(npMinute, maxValue = 99)
+        configurePicker(npSecond, maxValue = 59)
+
+        // Nilai awal dari TimerEngine.DEFAULT_DURATION_MS (00:05). Nilai
+        // roda belum dipakai untuk apa pun (menyusul di tahap logika).
+        val defaultMs = TimerEngine.DEFAULT_DURATION_MS
+        npMinute.value = (defaultMs / 60_000L).toInt()
+        npSecond.value = ((defaultMs / 1000L) % 60L).toInt()
+    }
+
+    private fun configurePicker(picker: NumberPicker, maxValue: Int) {
+        picker.minValue = 0
+        picker.maxValue = maxValue
+        // Angka 2 digit lewat displayedValues, BUKAN setFormatter (ada bug
+        // nilai awal tidak terformat).
+        picker.displayedValues = Array(maxValue + 1) { i -> String.format("%02d", i) }
+        picker.wrapSelectorWheel = true
+        // setTextSize/setTextColor cuma ada di API 29+; di bawahnya biarkan
+        // default dari tema platform yang sudah dibungkus ContextThemeWrapper.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            picker.setTextColor(resources.getColor(R.color.popup_text, theme))
+            picker.setTextSize(TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP, 18f, resources.displayMetrics
+            ))
+        }
+    }
+
+    private fun setupClicks(view: View) {
+        val btnClose: ImageButton = view.findViewById(R.id.btnClosePopup)
         btnClose.setOnClickListener {
             removePopup()
             stopSelf()
         }
 
-        windowManager?.addView(view, params)
+        // Hanya tampilan: Mulai, Reset, dan 6 pilihan cepat belum ada
+        // logikanya (menyusul di tahap logika).
+        val btnMulai: TextView = view.findViewById(R.id.btnMulai)
+        val btnReset: TextView = view.findViewById(R.id.btnReset)
+        val btnQuick1: TextView = view.findViewById(R.id.btnQuick1Min)
+        val btnQuick2: TextView = view.findViewById(R.id.btnQuick2Min)
+        val btnQuick5: TextView = view.findViewById(R.id.btnQuick5Min)
+        val btnQuick10: TextView = view.findViewById(R.id.btnQuick10Min)
+        val btnQuick20: TextView = view.findViewById(R.id.btnQuick20Min)
+        val btnQuick30: TextView = view.findViewById(R.id.btnQuick30Min)
+
+        btnMulai.setOnClickListener { /* TODO logika */ }
+        btnReset.setOnClickListener { /* TODO logika */ }
+        btnQuick1.setOnClickListener { /* TODO logika */ }
+        btnQuick2.setOnClickListener { /* TODO logika */ }
+        btnQuick5.setOnClickListener { /* TODO logika */ }
+        btnQuick10.setOnClickListener { /* TODO logika */ }
+        btnQuick20.setOnClickListener { /* TODO logika */ }
+        btnQuick30.setOnClickListener { /* TODO logika */ }
     }
 
     private fun removePopup() {

@@ -1,3 +1,11 @@
 <resources>
     <color name="notif_content_color">#DEFFFFFF</color>
+
+    <!-- Warna popup "Atur durasi" (mode gelap) -->
+    <color name="popup_bg">#2C2C2E</color>
+    <color name="popup_text">#F2F2F7</color>
+    <color name="popup_text_secondary">#A1A1A8</color>
+    <color name="popup_text_muted">#8E8E93</color>
+    <color name="popup_stroke">#29FFFFFF</color>
+    <color name="popup_selected_bg">#1C1C1E</color>
 </resources>

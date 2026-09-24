@@ -30,7 +30,7 @@
         </activity>
 
         <!-- Activity perantara (transparan, langsung finish) supaya notification
-             shade menutup saat tombol "Buka" di-tap -->
+             shade menutup saat tombol "Atur" di-tap -->
         <activity
             android:name=".PopupTrampolineActivity"
             android:exported="false"
@@ -60,7 +60,8 @@
             android:name=".OverlayPopupService"
             android:exported="false" />
 
-        <!-- Menerima aksi tombol dari notifikasi (Stop / Buka) tanpa membuka Activity -->
+        <!-- Menerima aksi tombol Reset dan Matikan alarm dari notifikasi
+             (Play/Pause sebagai cadangan) tanpa membuka Activity -->
         <receiver
             android:name=".NotificationActionReceiver"
             android:exported="false" />

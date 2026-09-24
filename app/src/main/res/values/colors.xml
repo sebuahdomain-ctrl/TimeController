@@ -5,4 +5,14 @@
          karena ?android:attr/textColorPrimary tidak konsisten ikut dark mode
          di beberapa skin OEM (mis. ColorOS) saat dipakai di RemoteViews. -->
     <color name="notif_content_color">#DE000000</color>
+
+    <!-- Warna popup "Atur durasi" (mode terang). Dipisah lewat values-night
+         karena popup di-inflate dari context Service, jadi tidak bisa
+         mengikuti tema app/DayNight seperti Activity biasa. -->
+    <color name="popup_bg">#FBFBFD</color>
+    <color name="popup_text">#1C1C1E</color>
+    <color name="popup_text_secondary">#6B6B70</color>
+    <color name="popup_text_muted">#8E8E93</color>
+    <color name="popup_stroke">#D8D8DD</color>
+    <color name="popup_selected_bg">#EEEEF1</color>
 </resources>
