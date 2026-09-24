@@ -58,10 +58,14 @@ class OverlayPopupService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
-            // FLAG_NOT_FOCUSABLE: popup tidak "merebut" fokus input dari app di belakangnya,
-            // jadi app yang sedang dibuka user tetap bisa dianggap aktif/foreground.
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            // CATATAN: sengaja TIDAK memakai FLAG_NOT_FOCUSABLE di sini.
+            // Window yang focusable membuat sistem otomatis menutup notification
+            // shade saat popup ini muncul (perilaku bawaan Android, berlaku di
+            // semua versi — beda dengan ACTION_CLOSE_SYSTEM_DIALOGS yang dibatasi
+            // mulai Android 12). App di belakang (WhatsApp, Chrome, dll) tetap
+            // terlihat dan tidak berpindah, karena ini tetap overlay window,
+            // bukan Activity baru.
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.CENTER

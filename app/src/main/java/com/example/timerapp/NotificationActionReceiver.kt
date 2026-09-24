@@ -27,7 +27,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
             TimerForegroundService.ACTION_OPEN_POPUP -> {
                 // Minta OverlayPopupService menampilkan jendela popup,
-                // tanpa membuka Activity apa pun.
+                // tanpa membuka Activity apa pun. Notification shade akan
+                // otomatis tertutup karena popup ini dibuat focusable
+                // (lihat catatan di OverlayPopupService).
                 val overlayIntent = Intent(context, OverlayPopupService::class.java)
                 context.startService(overlayIntent)
             }
