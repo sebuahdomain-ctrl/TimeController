@@ -80,7 +80,16 @@ class OverlayPopupService : Service() {
         }
 
         windowManager?.addView(view, params)
-        view.requestFocus()
+        // PENTING: requestFocus() tidak bisa dipanggil langsung di baris berikutnya,
+        // karena addView() bersifat async — view belum tentu sudah benar-benar
+        // ter-attach ke window saat baris berikutnya dieksekusi. Kalau dipaksa
+        // langsung, requestFocus() gagal diam-diam (return false, tanpa error),
+        // sehingga kelihatan seperti "tidak ngaruh sama sekali".
+        // view.post{} menunda pemanggilan sampai giliran layout berikutnya,
+        // saat view sudah pasti siap menerima fokus.
+        view.post {
+            view.requestFocus()
+        }
     }
 
     private fun removePopup() {
