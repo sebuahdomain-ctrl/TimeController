@@ -5,24 +5,30 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Menangani tombol Play dan Reset dari notifikasi custom.
+ * Menangani tombol dari notifikasi: Play/Pause, Reset, dan Matikan (alarm).
+ * Semuanya cuma diteruskan ke TimerForegroundService, logikanya ada di sana.
  * (Tombol "Atur" ditangani PopupTrampolineActivity, karena hanya tombol
- * yang memicu Activity yang bisa menutup notification shade otomatis.
- * Play dan Reset sengaja lewat broadcast biasa, jadi shade TIDAK menutup
- * otomatis saat keduanya ditekan — ini disengaja, bukan bug.)
- *
- * Tombol "Stop" sekarang ditangani langsung di MainActivity, bukan di sini.
+ * yang memicu Activity yang bisa menutup notification shade otomatis.)
  */
 class NotificationActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        when (intent.action) {
-            TimerForegroundService.ACTION_PLAY_PAUSE -> {
-                // TODO: logika play/pause timer belum dibuat, ini baru kerangka tampilan.
-            }
-            TimerForegroundService.ACTION_RESET -> {
-                // TODO: logika reset timer belum dibuat, ini baru kerangka tampilan.
-            }
+        val action = intent.action ?: return
+
+        val dikenal = action == TimerForegroundService.ACTION_PLAY_PAUSE ||
+            action == TimerForegroundService.ACTION_RESET ||
+            action == TimerForegroundService.ACTION_STOP_ALARM
+        if (!dikenal) return
+
+        // Service sudah mati? Abaikan saja, jangan crash.
+        if (!TimerForegroundService.isRunning) return
+
+        try {
+            context.startService(
+                Intent(context, TimerForegroundService::class.java).setAction(action)
+            )
+        } catch (e: Exception) {
+            // Sistem menolak start service: abaikan
         }
     }
 }
