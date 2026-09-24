@@ -12,10 +12,10 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bg_popup_card"
-    android:paddingTop="16dp"
-    android:paddingBottom="16dp"
-    android:paddingStart="20dp"
-    android:paddingEnd="20dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
     android:elevation="8dp">
 
     <!-- Baris judul: "Atur durasi" + tombol X -->

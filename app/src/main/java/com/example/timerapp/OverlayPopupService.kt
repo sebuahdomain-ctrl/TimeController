@@ -82,11 +82,11 @@ class OverlayPopupService : Service() {
         windowManager?.addView(view, params)
     }
 
-    /** Lebar popup: 90% lebar layar, maksimal 340dp. */
+    /** Lebar popup: 85% lebar layar, maksimal 300dp (kartu dibuat lebih ringkas). */
     private fun popupWidthPx(): Int {
         val metrics = resources.displayMetrics
-        val maxWidthPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 340f, metrics)
-        return minOf(metrics.widthPixels * 0.9f, maxWidthPx).toInt()
+        val maxWidthPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 300f, metrics)
+        return minOf(metrics.widthPixels * 0.85f, maxWidthPx).toInt()
     }
 
     /** Roda menit (0..99) dan detik (0..59), berputar, angka selalu 2 digit. */
