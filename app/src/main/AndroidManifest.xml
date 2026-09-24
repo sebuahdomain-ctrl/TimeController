@@ -39,6 +39,16 @@
             android:noHistory="true"
             android:taskAffinity="" />
 
+        <!-- Activity perantara untuk tombol Play/Pause (transparan, langsung finish)
+             supaya notification shade menutup saat Play di-tap -->
+        <activity
+            android:name=".PlayTrampolineActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TimerApp.Trampoline"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
         <!-- Foreground service pemegang notifikasi persisten -->
         <service
             android:name=".TimerForegroundService"

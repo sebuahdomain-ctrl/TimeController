@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Isi notifikasi alarm: judul di kiri, tombol "Matikan" di kanan -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="56dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:id="@+id/txtAlarmTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:gravity="start|center_vertical"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:text="Timer berakhir"
+        android:textSize="18sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/notif_content_color" />
+
+    <!-- Garis pemisah tipis -->
+    <View
+        android:layout_width="1dp"
+        android:layout_height="28dp"
+        android:alpha="0.2"
+        android:background="@color/notif_content_color" />
+
+    <TextView
+        android:id="@+id/btnMatikan"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:minWidth="96dp"
+        android:gravity="center"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:text="Matikan"
+        android:textSize="18sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/notif_content_color" />
+
+</LinearLayout>

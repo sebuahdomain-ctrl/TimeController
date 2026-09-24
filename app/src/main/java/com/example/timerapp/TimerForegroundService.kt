@@ -251,12 +251,14 @@ class TimerForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Tombol "Play/Pause" -> broadcast ke NotificationActionReceiver -> service.
-        val playPauseIntent = Intent(this, NotificationActionReceiver::class.java).apply {
-            action = ACTION_PLAY_PAUSE
+        // Tombol "Play/Pause" -> HARUS PendingIntent.getActivity supaya notification
+        // shade menutup otomatis (sama seperti tombol Atur). Activity-nya transparan,
+        // meneruskan aksi ke service, lalu langsung finish() (lihat PlayTrampolineActivity).
+        val playPauseIntent = Intent(this, PlayTrampolineActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
         }
-        val playPausePending = PendingIntent.getBroadcast(
-            this, 3, playPauseIntent,
+        val playPausePending = PendingIntent.getActivity(
+            this, 6, playPauseIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -289,7 +291,7 @@ class TimerForegroundService : Service() {
     }
 
     /**
-     * Notifikasi melayang "Timer berakhir" + tombol "Matikan".
+     * Notifikasi melayang: "Timer berakhir" di kiri + tombol "Matikan" di kanan.
      * Angka di sampingnya berjalan sendiri (chronometer) menghitung sudah
      * berapa lama alarm bunyi, jadi tidak perlu di-update manual.
      */
@@ -302,6 +304,11 @@ class TimerForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Tampilan custom: "Timer berakhir" di kiri, tombol "Matikan" di kanan
+        val alarmView = RemoteViews(packageName, R.layout.notification_alarm).apply {
+            setOnClickPendingIntent(R.id.btnMatikan, stopPending)
+        }
+
         val notification = NotificationCompat.Builder(this, ALARM_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Timer berakhir")
@@ -313,7 +320,9 @@ class TimerForegroundService : Service() {
             .setWhen(System.currentTimeMillis())
             .setShowWhen(true)
             .setUsesChronometer(true)
-            .addAction(0, "Matikan", stopPending)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(alarmView)
+            .setCustomHeadsUpContentView(alarmView)
             .build()
 
         notificationManager().notify(ALARM_NOTIFICATION_ID, notification)

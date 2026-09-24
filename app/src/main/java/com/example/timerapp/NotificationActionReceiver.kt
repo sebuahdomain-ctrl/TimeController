@@ -5,10 +5,11 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Menangani tombol dari notifikasi: Play/Pause, Reset, dan Matikan (alarm).
+ * Menangani tombol Reset dan Matikan (alarm) dari notifikasi, lewat broadcast.
  * Semuanya cuma diteruskan ke TimerForegroundService, logikanya ada di sana.
- * (Tombol "Atur" ditangani PopupTrampolineActivity, karena hanya tombol
- * yang memicu Activity yang bisa menutup notification shade otomatis.)
+ * (Tombol "Atur" dan "Play/Pause" lewat Activity perantara, karena hanya tombol
+ * yang memicu Activity yang bisa menutup notification shade otomatis.
+ * ACTION_PLAY_PAUSE di sini dibiarkan sebagai cadangan.)
  */
 class NotificationActionReceiver : BroadcastReceiver() {
 
