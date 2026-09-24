@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layar alarm penuh (AlarmActivity). Hanya view bawaan Android, warna lewat
+     resource popup_* supaya ikut mode gelap/terang sistem. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="@color/popup_bg">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Timer berakhir"
+        android:textSize="32sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/popup_text" />
+
+    <TextView
+        android:id="@+id/btnAlarmStop"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_marginTop="48dp"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="@drawable/bg_popup_start"
+        android:text="Matikan"
+        android:textSize="22sp"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>

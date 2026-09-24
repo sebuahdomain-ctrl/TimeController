@@ -21,6 +21,9 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
+    <!-- Izin membuka layar alarm penuh di atas kunci layar saat timer berakhir -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
     <!-- Izin untuk menampilkan popup di atas aplikasi lain -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
@@ -57,6 +60,15 @@
             android:theme="@style/Theme.TimerApp.Trampoline"
             android:excludeFromRecents="true"
             android:noHistory="true"
+            android:taskAffinity="" />
+
+        <!-- Layar alarm penuh: dibuka full-screen intent notifikasi alarm,
+             tampil di atas kunci layar (showWhenLocked/turnScreenOn diatur di kode) -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
             android:taskAffinity="" />
 
         <!-- Foreground service pemegang notifikasi persisten -->

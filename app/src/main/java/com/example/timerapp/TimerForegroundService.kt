@@ -40,12 +40,24 @@ class TimerForegroundService : Service() {
         // Request code tetap untuk PendingIntent alarm sistem (1, 4, 5, 6 sudah dipakai tombol notifikasi)
         private const val ALARM_REQUEST_CODE = 7
 
+        // Request code untuk layar alarm penuh (full-screen intent)
+        private const val ALARM_SCREEN_REQUEST_CODE = 8
+
+        // Dikirim service saat bunyi alarm berhenti, supaya AlarmActivity menutup diri
+        const val ACTION_ALARM_STOPPED = "com.example.timerapp.ACTION_ALARM_STOPPED"
+
         // Alarm berhenti sendiri setelah 60 detik
         const val ALARM_MAX_MS = 60_000L
 
         // Dibaca MainActivity.onResume untuk menentukan teks tombol & status.
         @Volatile
         var isRunning: Boolean = false
+            private set
+
+        // True selama alarm sedang berbunyi. Dibaca AlarmActivity supaya tidak
+        // tampil kalau alarm sebenarnya sudah berhenti.
+        @Volatile
+        var isAlarmRinging: Boolean = false
             private set
     }
 
@@ -78,6 +90,7 @@ class TimerForegroundService : Service() {
         cancelFinishAlarm()
         alarmPlayer.stop()
         notificationManager().cancel(ALARM_NOTIFICATION_ID)
+        notifyAlarmStopped()
         releaseWakeLock()
         isRunning = false
         super.onDestroy()
@@ -209,6 +222,7 @@ class TimerForegroundService : Service() {
     private fun onFinished() {
         cancelFinishAlarm() // alarm sistem sudah tidak diperlukan lagi
         alarmPlayer.start()
+        isAlarmRinging = true
         releaseWakeLock() // MediaPlayer memegang wake lock sendiri selama bunyi
         refreshNotification()
         showAlarmNotification()
@@ -221,6 +235,16 @@ class TimerForegroundService : Service() {
         handler.removeCallbacks(alarmTimeoutRunnable)
         alarmPlayer.stop()
         notificationManager().cancel(ALARM_NOTIFICATION_ID)
+        notifyAlarmStopped()
+    }
+
+    /** Beri tahu AlarmActivity (kalau sedang tampil) bahwa alarm sudah berhenti, supaya menutup diri. */
+    private fun notifyAlarmStopped() {
+        val wasRinging = isAlarmRinging
+        isAlarmRinging = false
+        if (wasRinging) {
+            sendBroadcast(Intent(ACTION_ALARM_STOPPED).setPackage(packageName))
+        }
     }
 
     // ---------------------------------------------------------------
@@ -434,9 +458,21 @@ class TimerForegroundService : Service() {
             setOnClickPendingIntent(R.id.btnMatikan, stopPending)
         }
 
+        // Layar alarm penuh: saat HP terkunci / layar mati, sistem langsung
+        // membuka AlarmActivity di atas kunci layar (tombol Matikan besar, tanpa
+        // perlu buka kunci). Saat HP sedang dipakai, tetap tampil melayang seperti biasa.
+        val fullScreenIntent = Intent(this, AlarmActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
+        }
+        val fullScreenPending = PendingIntent.getActivity(
+            this, ALARM_SCREEN_REQUEST_CODE, fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(this, ALARM_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle("Timer berakhir")
+            .setFullScreenIntent(fullScreenPending, true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
