@@ -58,17 +58,20 @@ class OverlayPopupService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
-            // CATATAN: sengaja TIDAK memakai FLAG_NOT_FOCUSABLE di sini.
-            // Window yang focusable membuat sistem otomatis menutup notification
-            // shade saat popup ini muncul (perilaku bawaan Android, berlaku di
-            // semua versi — beda dengan ACTION_CLOSE_SYSTEM_DIALOGS yang dibatasi
-            // mulai Android 12). App di belakang (WhatsApp, Chrome, dll) tetap
-            // terlihat dan tidak berpindah, karena ini tetap overlay window,
-            // bukan Activity baru.
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            // Sengaja TIDAK memakai FLAG_NOT_FOCUSABLE maupun FLAG_LAYOUT_NO_LIMITS.
+            // Window yang focusable membuat sistem menutup notification shade saat
+            // popup muncul. FLAG_LAYOUT_NO_LIMITS dihapus karena di beberapa ROM
+            // custom (mis. ColorOS) flag ini membuat sistem tidak memperlakukan
+            // window sebagai window biasa yang berhak mendapat fokus.
+            0,
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.CENTER
+
+        // Minta fokus secara eksplisit, bukan mengandalkan default sistem —
+        // beberapa ROM custom tidak otomatis memberi fokus ke window baru.
+        view.isFocusable = true
+        view.isFocusableInTouchMode = true
 
         val btnClose: Button = view.findViewById(R.id.btnClosePopup)
         btnClose.setOnClickListener {
@@ -77,6 +80,7 @@ class OverlayPopupService : Service() {
         }
 
         windowManager?.addView(view, params)
+        view.requestFocus()
     }
 
     private fun removePopup() {
