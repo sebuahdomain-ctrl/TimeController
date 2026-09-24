@@ -1,12 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="maroon">#800020</color>
-    <color name="maroon_dark">#5C0017</color>
-    <color name="maroon_soft">#26800020</color>
-    <color name="background">#0E0E10</color>
-    <color name="surface">#1C1C1E</color>
-    <color name="surface_button">#2C2C2E</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#8E8E93</color>
-    <color name="white">#FFFFFF</color>
+    <color name="ic_launcher_background">#7B1E1E</color>
 </resources>

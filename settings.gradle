@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TimeController"
-include ':app'
+rootProject.name = "TimerApp"
+include(":app")

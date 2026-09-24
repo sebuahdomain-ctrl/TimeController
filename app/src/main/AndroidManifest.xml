@@ -1,20 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Izin untuk menampilkan notifikasi (wajib eksplisit mulai Android 13 / API 33) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Izin agar foreground service tetap hidup dan notifikasinya persisten -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Izin untuk menampilkan popup di atas aplikasi lain -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:theme="@style/Theme.TimeController"
-        android:supportsRtl="true">
+        android:label="Timer App"
+        android:theme="@style/Theme.TimerApp">
 
         <activity
             android:name=".MainActivity"
@@ -25,33 +26,21 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".OverlayPermissionActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TimeController" />
-
-        <activity
-            android:name=".TimerPopupActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TimeController.Transparent"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTask" />
-
+        <!-- Foreground service pemegang notifikasi persisten -->
         <service
             android:name=".TimerForegroundService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="countdown_timer" />
-        </service>
+            android:foregroundServiceType="specialUse" />
 
+        <!-- Service yang menangani jendela overlay (popup) -->
+        <service
+            android:name=".OverlayPopupService"
+            android:exported="false" />
+
+        <!-- Menerima aksi tombol dari notifikasi (Stop / Buka) tanpa membuka Activity -->
         <receiver
-            android:name=".AlarmReceiver"
+            android:name=".NotificationActionReceiver"
             android:exported="false" />
 
     </application>
-
 </manifest>
