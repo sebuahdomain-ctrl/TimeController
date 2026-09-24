@@ -1,27 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="maroon">#800020</color>
-    <color name="maroon_hover">#940026</color>
-    <color name="maroon_light">#A31035</color>
-    <color name="maroon_dark">#540015</color>
-
-    <color name="bg_white">#FFFFFF</color>
-    <color name="card_bg">#1C1C1F</color>
-    <color name="box_bg">#24242A</color>
-    <color name="box_bg_hover">#2A2A32</color>
-    <color name="tab_bg">#121214</color>
-    <color name="tab_active">#2B2B30</color>
-
-    <color name="text_white">#FFFFFF</color>
-    <color name="text_gray">#9CA3AF</color>
-    <color name="text_gray_dark">#6B7280</color>
-
-    <color name="border_white_5">#0DFFFFFF</color>
-    <color name="white_10">#1AFFFFFF</color>
-
-    <color name="red_400">#F87171</color>
-    <color name="red_300">#FCA5A5</color>
-    <color name="red_600">#DC2626</color>
-
-    <color name="transparent">#00000000</color>
+    <color name="maroon_dark">#5C0017</color>
+    <color name="maroon_soft">#26800020</color>
+    <color name="background">#0E0E10</color>
+    <color name="surface">#1C1C1E</color>
+    <color name="surface_button">#2C2C2E</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#8E8E93</color>
+    <color name="white">#FFFFFF</color>
 </resources>

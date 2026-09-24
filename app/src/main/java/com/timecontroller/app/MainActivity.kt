@@ -1,101 +1,78 @@
 package com.timecontroller.app
 
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var btnStart: Button
-    private lateinit var btnStop: Button
-    private lateinit var statusText: TextView
+    private lateinit var mainButton: TextView
+    private lateinit var prefs: SharedPreferences
 
-    private val notifPermissionRequestCode = 101
+    companion object {
+        private const val REQ_NOTIFICATIONS = 501
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        btnStart = findViewById(R.id.btnStart)
-        btnStop = findViewById(R.id.btnStop)
-        statusText = findViewById(R.id.statusText)
+        prefs = getSharedPreferences(Const.PREFS_NAME, MODE_PRIVATE)
+        mainButton = findViewById(R.id.mainButton)
 
-        btnStart.setOnClickListener { onStartClicked() }
-        btnStop.setOnClickListener { onStopClicked() }
-
-        updateButtonState(TimeControllerService.isRunning)
+        mainButton.setOnClickListener { onMainButtonClicked() }
+        updateButtonState()
     }
 
     override fun onResume() {
         super.onResume()
-        updateButtonState(TimeControllerService.isRunning)
+        updateButtonState()
     }
 
-    private fun onStartClicked() {
-        // 1. Cek izin overlay (tampil di atas app lain)
-        if (!Settings.canDrawOverlays(this)) {
-            Toast.makeText(this, "Izinkan \"Tampil di atas aplikasi lain\" untuk TimeController", Toast.LENGTH_LONG).show()
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
-            return
-        }
+    private fun updateButtonState() {
+        val running = prefs.getBoolean(Const.PREF_IS_RUNNING, false)
+        mainButton.text = if (running) getString(R.string.stop) else getString(R.string.start)
+    }
 
-        // 2. Cek izin notifikasi (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    notifPermissionRequestCode
-                )
-                return
+    private fun onMainButtonClicked() {
+        val running = prefs.getBoolean(Const.PREF_IS_RUNNING, false)
+
+        if (running) {
+            // Matikan notifikasi persisten
+            val intent = Intent(this, TimerForegroundService::class.java).apply {
+                action = Const.ACTION_STOP_SERVICE
             }
-        }
-
-        // 3. Cek izin exact alarm (Android 12+)
-        val alarmManager = getSystemService(ALARM_SERVICE) as android.app.AlarmManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Toast.makeText(this, "Izinkan alarm presisi untuk TimeController", Toast.LENGTH_LONG).show()
-            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-            startActivity(intent)
+            startService(intent)
+            mainButton.text = getString(R.string.start)
             return
         }
 
-        startTimeControllerService()
-    }
+        // Belum berjalan: pastikan izin overlay dulu, baru izin notifikasi, baru start service
+        if (!Settings.canDrawOverlays(this)) {
+            startActivity(Intent(this, OverlayPermissionActivity::class.java))
+            return
+        }
 
-    private fun startTimeControllerService() {
-        val intent = Intent(this, TimeControllerService::class.java)
-        intent.action = TimeControllerService.ACTION_START
-        ContextCompat.startForegroundService(this, intent)
-        updateButtonState(true)
-    }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                REQ_NOTIFICATIONS
+            )
+            return
+        }
 
-    private fun onStopClicked() {
-        val intent = Intent(this, TimeControllerService::class.java)
-        intent.action = TimeControllerService.ACTION_STOP
-        startService(intent)
-        updateButtonState(false)
-    }
-
-    private fun updateButtonState(running: Boolean) {
-        btnStart.isEnabled = !running
-        btnStop.isEnabled = running
-        statusText.text = if (running) "Layanan aktif" else "Layanan tidak aktif"
+        startTimerService()
     }
 
     override fun onRequestPermissionsResult(
@@ -104,8 +81,16 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == notifPermissionRequestCode) {
-            onStartClicked()
+        if (requestCode == REQ_NOTIFICATIONS) {
+            startTimerService()
         }
+    }
+
+    private fun startTimerService() {
+        val intent = Intent(this, TimerForegroundService::class.java).apply {
+            action = Const.ACTION_START_SERVICE
+        }
+        ContextCompat.startForegroundService(this, intent)
+        mainButton.text = getString(R.string.stop)
     }
 }

@@ -1,51 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg_white"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp">
+    android:background="@color/background">
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/app_name"
-        android:textColor="@color/card_bg"
-        android:textSize="24sp"
+        android:id="@+id/mainButton"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:background="@drawable/bg_circle_button"
+        android:gravity="center"
+        android:text="@string/start"
+        android:textColor="@color/white"
+        android:textSize="18sp"
         android:textStyle="bold"
-        android:layout_marginBottom="8dp" />
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Layanan tidak aktif"
-        android:textColor="@color/text_gray_dark"
-        android:textSize="14sp"
-        android:layout_marginBottom="48dp" />
-
-    <Button
-        android:id="@+id/btnStart"
-        android:layout_width="220dp"
-        android:layout_height="64dp"
-        android:text="@string/btn_start"
-        android:textColor="@color/text_white"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:background="@drawable/bg_btn_maroon"
-        android:elevation="4dp"
-        android:layout_marginBottom="16dp" />
-
-    <Button
-        android:id="@+id/btnStop"
-        android:layout_width="220dp"
-        android:layout_height="64dp"
-        android:text="@string/btn_stop"
-        android:textColor="@color/text_gray"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:background="@drawable/bg_btn_dark"
-        android:enabled="false" />
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">TimeController</string>
-    <string name="btn_start">MULAI</string>
-    <string name="btn_stop">STOP</string>
-    <string name="notif_channel_service">Layanan TimeController</string>
-    <string name="notif_channel_alarm">Alarm TimeController</string>
-    <string name="notif_service_title">TimeController aktif</string>
-    <string name="notif_service_text">Ketuk untuk buka pengaturan timer / stopwatch</string>
-    <string name="notif_action_open">Buka</string>
-    <string name="notif_alarm_title">Timer berakhir</string>
-    <string name="notif_action_dismiss">Matikan</string>
+    <string name="start">Mulai</string>
+    <string name="stop">Stop</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Lanjut</string>
+    <string name="reset">Reset</string>
+    <string name="adjust">Atur</string>
+    <string name="timer_title">Timer</string>
+    <string name="timer_running_status">Timer berjalan</string>
+    <string name="timer_finished_title">Timer berakhir</string>
+    <string name="turn_off">Matikan</string>
+    <string name="overlay_permission_title">Izinkan tampil di atas aplikasi lain</string>
+    <string name="overlay_permission_body">TimeController butuh izin ini agar popup pengatur durasi bisa muncul walau kamu sedang membuka aplikasi lain.</string>
+    <string name="allow">Izinkan</string>
+    <string name="notification_channel_persistent_name">Timer Berjalan</string>
+    <string name="notification_channel_alarm_name">Timer Berakhir</string>
 </resources>
