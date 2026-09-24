@@ -15,7 +15,7 @@
         android:textSize="24sp"
         android:fontFamily="sans-serif-medium"
         android:fontFeatureSettings="tnum"
-        android:textColor="?android:attr/textColorPrimary" />
+        android:textColor="@color/notif_content_color" />
 
     <ImageButton
         android:id="@+id/btnPlay"
@@ -25,7 +25,7 @@
         android:background="@android:color/transparent"
         android:scaleType="center"
         android:src="@drawable/ic_play"
-        android:tint="?android:attr/textColorPrimary"
+        android:tint="@color/notif_content_color"
         android:contentDescription="Play" />
 
     <ImageButton
@@ -36,7 +36,7 @@
         android:background="@android:color/transparent"
         android:scaleType="center"
         android:src="@drawable/ic_reset"
-        android:tint="?android:attr/textColorPrimary"
+        android:tint="@color/notif_content_color"
         android:contentDescription="Reset" />
 
     <ImageButton
@@ -47,7 +47,7 @@
         android:background="@android:color/transparent"
         android:scaleType="center"
         android:src="@drawable/ic_atur"
-        android:tint="?android:attr/textColorPrimary"
+        android:tint="@color/notif_content_color"
         android:contentDescription="Atur" />
 
 </LinearLayout>
