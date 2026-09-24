@@ -26,6 +26,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Activity perantara (transparan, langsung finish) supaya notification
+             shade menutup saat tombol "Buka" di-tap -->
+        <activity
+            android:name=".PopupTrampolineActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TimerApp.Trampoline"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
         <!-- Foreground service pemegang notifikasi persisten -->
         <service
             android:name=".TimerForegroundService"

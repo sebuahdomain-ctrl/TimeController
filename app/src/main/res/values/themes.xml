@@ -4,4 +4,11 @@
         <item name="colorPrimaryVariant">#5C1616</item>
         <item name="colorOnPrimary">#FFFFFF</item>
     </style>
+
+    <!-- Tema transparan tanpa animasi untuk PopupTrampolineActivity -->
+    <style name="Theme.TimerApp.Trampoline" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 </resources>

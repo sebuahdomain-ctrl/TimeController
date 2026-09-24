@@ -17,7 +17,6 @@ class TimerForegroundService : Service() {
         const val NOTIFICATION_ID = 1001
 
         const val ACTION_STOP = "com.example.timerapp.ACTION_STOP"
-        const val ACTION_OPEN_POPUP = "com.example.timerapp.ACTION_OPEN_POPUP"
     }
 
     override fun onCreate() {
@@ -48,11 +47,13 @@ class TimerForegroundService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        // Tombol "Buka" -> minta OverlayPopupService menampilkan popup
-        val openPopupIntent = Intent(this, NotificationActionReceiver::class.java).apply {
-            action = ACTION_OPEN_POPUP
+        // Tombol "Buka" -> HARUS PendingIntent.getActivity supaya notification shade
+        // menutup otomatis. Activity-nya transparan & langsung finish(), lalu
+        // memunculkan popup lewat OverlayPopupService (lihat PopupTrampolineActivity).
+        val openPopupIntent = Intent(this, PopupTrampolineActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION
         }
-        val openPopupPending = PendingIntent.getBroadcast(
+        val openPopupPending = PendingIntent.getActivity(
             this, 1, openPopupIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

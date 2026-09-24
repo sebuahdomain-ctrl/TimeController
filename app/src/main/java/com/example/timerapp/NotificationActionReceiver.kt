@@ -6,10 +6,9 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Menangani tap tombol dari notifikasi persisten.
- * PENTING: ini BroadcastReceiver, bukan Activity — jadi tap tombol
- * TIDAK akan membawa user "masuk" ke dalam app. App yang sedang
- * dibuka user (WhatsApp, Chrome, dll) tetap di depan.
+ * Menangani tombol "Stop" dari notifikasi persisten.
+ * (Tombol "Buka" ditangani PopupTrampolineActivity, karena hanya tombol
+ * yang memicu Activity yang bisa menutup notification shade otomatis.)
  */
 class NotificationActionReceiver : BroadcastReceiver() {
 
@@ -23,15 +22,6 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 // Jika popup sedang terbuka, ikut ditutup juga
                 val stopOverlayIntent = Intent(context, OverlayPopupService::class.java)
                 context.stopService(stopOverlayIntent)
-            }
-
-            TimerForegroundService.ACTION_OPEN_POPUP -> {
-                // Minta OverlayPopupService menampilkan jendela popup,
-                // tanpa membuka Activity apa pun. Notification shade akan
-                // otomatis tertutup karena popup ini dibuat focusable
-                // (lihat catatan di OverlayPopupService).
-                val overlayIntent = Intent(context, OverlayPopupService::class.java)
-                context.startService(overlayIntent)
             }
         }
     }

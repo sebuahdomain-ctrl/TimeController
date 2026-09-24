@@ -58,11 +58,8 @@ class OverlayPopupService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
-            // Sengaja TIDAK memakai FLAG_NOT_FOCUSABLE maupun FLAG_LAYOUT_NO_LIMITS.
-            // Window yang focusable membuat sistem menutup notification shade saat
-            // popup muncul. FLAG_LAYOUT_NO_LIMITS dihapus karena di beberapa ROM
-            // custom (mis. ColorOS) flag ini membuat sistem tidak memperlakukan
-            // window sebagai window biasa yang berhak mendapat fokus.
+            // CATATAN: fokus jendela TIDAK berpengaruh ke notification shade.
+            // Shade ditutup oleh PopupTrampolineActivity (lewat tombol "Buka").
             0,
             PixelFormat.TRANSLUCENT
         )
