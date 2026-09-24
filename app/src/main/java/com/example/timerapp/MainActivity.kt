@@ -17,6 +17,7 @@ import android.widget.Button
 class MainActivity : AppCompatActivity() {
 
     private lateinit var txtStatus: TextView
+    private lateinit var btnStart: Button
 
     // Launcher untuk minta izin notifikasi (Android 13+)
     private val notifPermissionLauncher = registerForActivityResult(
@@ -45,10 +46,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         txtStatus = findViewById(R.id.txtStatus)
-        val btnStart: Button = findViewById(R.id.btnStart)
+        btnStart = findViewById(R.id.btnStart)
 
         btnStart.setOnClickListener {
-            checkNotificationPermissionThenProceed()
+            if (TimerForegroundService.isRunning) {
+                stopTimerService()
+            } else {
+                checkNotificationPermissionThenProceed()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Sumber kebenaran status hidup/mati: flag statis di TimerForegroundService.
+        // Berguna kalau service sempat mati sendiri (dibunuh sistem, dll) saat app
+        // sedang di background.
+        updateStatusUi()
+    }
+
+    private fun updateStatusUi() {
+        if (TimerForegroundService.isRunning) {
+            btnStart.text = "Stop"
+            txtStatus.text = "Aktif, cek notifikasi"
+        } else {
+            btnStart.text = "Start"
+            txtStatus.text = "Nonaktif"
         }
     }
 
@@ -83,7 +106,15 @@ class MainActivity : AppCompatActivity() {
     private fun startForegroundServiceTimer() {
         val serviceIntent = Intent(this, TimerForegroundService::class.java)
         ContextCompat.startForegroundService(this, serviceIntent)
-        txtStatus.text = "Aktif — cek notifikasi"
+        btnStart.text = "Stop"
+        txtStatus.text = "Aktif, cek notifikasi"
         Toast.makeText(this, "Notifikasi persisten aktif", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun stopTimerService() {
+        stopService(Intent(this, TimerForegroundService::class.java))
+        stopService(Intent(this, OverlayPopupService::class.java))
+        btnStart.text = "Start"
+        txtStatus.text = "Nonaktif"
     }
 }

@@ -13,12 +13,9 @@ import android.view.WindowManager
 import android.widget.Button
 
 /**
- * Menampilkan popup sebagai jendela overlay ASLI di atas app lain,
- * menggunakan WindowManager + TYPE_APPLICATION_OVERLAY.
- *
- * INI KUNCINYA supaya app yang sedang dibuka user (WhatsApp, Chrome, dll)
- * TETAP di depan / tetap aktif. Tidak ada startActivity() sama sekali,
- * jadi tidak ada "perpindahan app" yang terjadi.
+ * Menampilkan popup sebagai jendela overlay di atas app lain
+ * (WindowManager + TYPE_APPLICATION_OVERLAY), jadi app yang sedang
+ * dibuka user tetap di depan.
  */
 class OverlayPopupService : Service() {
 
@@ -58,17 +55,10 @@ class OverlayPopupService : Service() {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             overlayType,
-            // CATATAN: fokus jendela TIDAK berpengaruh ke notification shade.
-            // Shade ditutup oleh PopupTrampolineActivity (lewat tombol "Buka").
             0,
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.CENTER
-
-        // Minta fokus secara eksplisit, bukan mengandalkan default sistem —
-        // beberapa ROM custom tidak otomatis memberi fokus ke window baru.
-        view.isFocusable = true
-        view.isFocusableInTouchMode = true
 
         val btnClose: Button = view.findViewById(R.id.btnClosePopup)
         btnClose.setOnClickListener {
@@ -77,16 +67,6 @@ class OverlayPopupService : Service() {
         }
 
         windowManager?.addView(view, params)
-        // PENTING: requestFocus() tidak bisa dipanggil langsung di baris berikutnya,
-        // karena addView() bersifat async — view belum tentu sudah benar-benar
-        // ter-attach ke window saat baris berikutnya dieksekusi. Kalau dipaksa
-        // langsung, requestFocus() gagal diam-diam (return false, tanpa error),
-        // sehingga kelihatan seperti "tidak ngaruh sama sekali".
-        // view.post{} menunda pemanggilan sampai giliran layout berikutnya,
-        // saat view sudah pasti siap menerima fokus.
-        view.post {
-            view.requestFocus()
-        }
     }
 
     private fun removePopup() {

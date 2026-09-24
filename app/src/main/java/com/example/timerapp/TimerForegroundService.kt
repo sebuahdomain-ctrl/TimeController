@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 
 class TimerForegroundService : Service() {
@@ -16,12 +17,28 @@ class TimerForegroundService : Service() {
         const val CHANNEL_ID = "timer_persistent_channel"
         const val NOTIFICATION_ID = 1001
 
-        const val ACTION_STOP = "com.example.timerapp.ACTION_STOP"
+        const val ACTION_PLAY_PAUSE = "com.example.timerapp.ACTION_PLAY_PAUSE"
+        const val ACTION_RESET = "com.example.timerapp.ACTION_RESET"
+
+        // Format angka waktu di notifikasi. Masih placeholder statis (belum dihitung),
+        // sengaja dijadikan satu konstanta supaya gampang diganti nanti.
+        private const val TIME_PLACEHOLDER = "00:00"
+
+        // Dibaca MainActivity.onResume untuk menentukan teks tombol & status.
+        @Volatile
+        var isRunning: Boolean = false
+            private set
     }
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         createNotificationChannel()
+    }
+
+    override fun onDestroy() {
+        isRunning = false
+        super.onDestroy()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -47,7 +64,7 @@ class TimerForegroundService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        // Tombol "Buka" -> HARUS PendingIntent.getActivity supaya notification shade
+        // Tombol "Atur" -> HARUS PendingIntent.getActivity supaya notification shade
         // menutup otomatis. Activity-nya transparan & langsung finish(), lalu
         // memunculkan popup lewat OverlayPopupService (lihat PopupTrampolineActivity).
         val openPopupIntent = Intent(this, PopupTrampolineActivity::class.java).apply {
@@ -58,23 +75,38 @@ class TimerForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Tombol "Stop" -> hentikan foreground service
-        val stopIntent = Intent(this, NotificationActionReceiver::class.java).apply {
-            action = ACTION_STOP
+        // Tombol "Play" -> logika timer belum ada, sengaja no-op lewat broadcast biasa.
+        // Shade memang TIDAK menutup untuk tombol ini, itu disengaja.
+        val playPauseIntent = Intent(this, NotificationActionReceiver::class.java).apply {
+            action = ACTION_PLAY_PAUSE
         }
-        val stopPending = PendingIntent.getBroadcast(
-            this, 2, stopIntent,
+        val playPausePending = PendingIntent.getBroadcast(
+            this, 3, playPauseIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Tombol "Reset" -> sama, sengaja no-op untuk sekarang.
+        val resetIntent = Intent(this, NotificationActionReceiver::class.java).apply {
+            action = ACTION_RESET
+        }
+        val resetPending = PendingIntent.getBroadcast(
+            this, 4, resetIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val customView = RemoteViews(packageName, R.layout.notification_timer).apply {
+            setTextViewText(R.id.txtNotifTime, TIME_PLACEHOLDER)
+            setOnClickPendingIntent(R.id.btnPlay, playPausePending)
+            setOnClickPendingIntent(R.id.btnReset, resetPending)
+            setOnClickPendingIntent(R.id.btnAtur, openPopupPending)
+        }
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Timer App aktif")
-            .setContentText("Notifikasi ini akan terus muncul")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setOngoing(true) // membuat notifikasi tidak bisa di-swipe hilang
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .addAction(0, "Buka", openPopupPending)
-            .addAction(0, "Stop", stopPending)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(customView)
             .build()
     }
 
