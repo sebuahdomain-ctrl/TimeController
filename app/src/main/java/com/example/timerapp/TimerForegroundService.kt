@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
+import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 
@@ -43,6 +44,11 @@ class TimerForegroundService : Service() {
         // Request code untuk layar alarm penuh (full-screen intent)
         private const val ALARM_SCREEN_REQUEST_CODE = 8
 
+        // Request code untuk "showIntent" alarm jam (dibuka kalau ikon alarm di status bar di-tap)
+        private const val ALARM_SHOW_REQUEST_CODE = 9
+
+        private const val TAG = "TimerService"
+
         // Dikirim service saat bunyi alarm berhenti, supaya AlarmActivity menutup diri
         const val ACTION_ALARM_STOPPED = "com.example.timerapp.ACTION_ALARM_STOPPED"
 
@@ -66,6 +72,9 @@ class TimerForegroundService : Service() {
     private lateinit var alarmPlayer: AlarmPlayer
     // Hanya dipakai di jalur CADANGAN (kalau alarm exact tidak boleh dipasang)
     private var wakeLock: PowerManager.WakeLock? = null
+
+    // Sudah pernah startForeground() sejak service ini dibuat?
+    private var foregroundStarted = false
 
     // Isi notifikasi terakhir yang ditampilkan (supaya tidak update kalau tidak berubah)
     private var lastText: String? = null
@@ -97,19 +106,57 @@ class TimerForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // START_STICKY: kalau service dibunuh sistem karena low memory,
-        // Android akan mencoba menghidupkannya lagi otomatis (intent = null).
-        when (intent?.action) {
+        // Service yang dinyalakan lewat startForegroundService() (misalnya oleh
+        // TimerAlarmReceiver di proses yang baru hidup) WAJIB memanggil
+        // startForeground() dalam beberapa detik, kalau tidak sistem mematikannya.
+        // Jadi lakukan itu paling awal, sebelum apa pun.
+        val fresh = !foregroundStarted
+        if (fresh || intent?.action == ACTION_TIMER_DONE) {
+            startForeground(NOTIFICATION_ID, buildNotification())
+            foregroundStarted = true
+        }
+
+        if (intent == null) {
+            // START_STICKY: proses dibunuh sistem lalu service dihidupkan lagi
+            // (intent = null). Pulihkan timer yang tadinya jalan, jangan direset.
+            restoreAfterSystemRestart()
+            return START_STICKY
+        }
+
+        when (intent.action) {
             ACTION_PLAY_PAUSE -> handlePlayPause()
             ACTION_RESET -> handleReset()
             ACTION_STOP_ALARM -> handleStopAlarm()
             ACTION_START_WITH_DURATION ->
-                handleStartWithDuration(intent?.getLongExtra(EXTRA_DURATION_MS, 0L) ?: 0L)
-            ACTION_TIMER_DONE -> handleTimerDone()
-            // Tanpa action (Start dari app / restart sistem): mulai bersih di IDLE
+                handleStartWithDuration(intent.getLongExtra(EXTRA_DURATION_MS, 0L))
+            ACTION_TIMER_DONE -> handleTimerDone(fresh)
+            // Tanpa action (Start dari app): mulai bersih di IDLE
             else -> startClean()
         }
         return START_STICKY
+    }
+
+    /**
+     * Service dihidupkan ulang sistem tanpa perintah. Kalau sebelumnya ada
+     * timer yang jalan (tersimpan di RunningStore), lanjutkan; kalau waktunya
+     * sudah lewat, langsung bunyikan alarm. Kalau tidak ada, mulai bersih.
+     */
+    private fun restoreAfterSystemRestart() {
+        val endWall = RunningStore.getEndWall(this)
+        if (endWall <= 0L) {
+            resetToIdle()
+            refreshNotification()
+            return
+        }
+        val remaining = endWall - System.currentTimeMillis()
+        engine.restoreRunning(remaining)
+        if (remaining <= 0L) {
+            engine.finishIfDue()
+            onFinished()
+        } else {
+            armCountdown()
+            notificationManager().notify(NOTIFICATION_ID, buildNotification())
+        }
     }
 
     // ---------------------------------------------------------------
@@ -118,7 +165,7 @@ class TimerForegroundService : Service() {
 
     private fun startClean() {
         resetToIdle()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        notificationManager().notify(NOTIFICATION_ID, buildNotification())
     }
 
     private fun handlePlayPause() {
@@ -160,9 +207,22 @@ class TimerForegroundService : Service() {
      * Alarm sistem berbunyi: waktu habis. Idempotent: hanya bekerja kalau masih
      * RUNNING dan waktunya memang sudah habis, jadi tidak mungkin berbunyi dobel
      * dengan jalur tick Handler (yang memakai finishIfDue yang sama).
+     *
+     * Kalau service baru saja dihidupkan alarm ini (proses app sempat dimatikan
+     * sistem), engine masih IDLE: pulihkan dulu dari RunningStore.
      */
-    private fun handleTimerDone() {
-        if (engine.state != TimerState.RUNNING) return
+    private fun handleTimerDone(fresh: Boolean) {
+        if (engine.state != TimerState.RUNNING) {
+            val endWall = RunningStore.getEndWall(this)
+            if (endWall > 0L) {
+                engine.restoreRunning(endWall - System.currentTimeMillis())
+            } else {
+                // Alarm nyasar (timer sudah dibatalkan): kalau service ini hidup
+                // hanya gara-gara alarm tadi, matikan lagi.
+                if (fresh) stopSelf()
+                return
+            }
+        }
         if (engine.finishIfDue()) {
             handler.removeCallbacks(tickRunnable)
             onFinished()
@@ -221,11 +281,14 @@ class TimerForegroundService : Service() {
 
     private fun onFinished() {
         cancelFinishAlarm() // alarm sistem sudah tidak diperlukan lagi
-        alarmPlayer.start()
+        // URUTAN PENTING: tandai alarm berbunyi dan tampilkan notifikasi (full-screen
+        // intent) DULU, baru nyalakan suara. Menyiapkan nada bisa lambat setelah HP
+        // tidur, dan itu tidak boleh menunda munculnya halaman Matikan.
         isAlarmRinging = true
-        releaseWakeLock() // MediaPlayer memegang wake lock sendiri selama bunyi
-        refreshNotification()
         showAlarmNotification()
+        refreshNotification()
+        alarmPlayer.start()
+        releaseWakeLock() // MediaPlayer memegang wake lock sendiri selama bunyi
         handler.removeCallbacks(alarmTimeoutRunnable)
         handler.postDelayed(alarmTimeoutRunnable, ALARM_MAX_MS)
     }
@@ -263,38 +326,45 @@ class TimerForegroundService : Service() {
      * titip "bangunkan aku tepat di detik X" ke sistem. HP boleh tidur, dan
      * sistem yang membangunkannya persis saat waktu habis.
      *
-     * Kalau alarm exact tidak boleh dipasang (izin dicabut di Android 12, atau
-     * sistem melempar SecurityException), jatuh ke CADANGAN: alarm biasa
-     * (setAndAllowWhileIdle) ditambah wake lock seperti sebelumnya, supaya
-     * tick Handler tetap jalan dan alarm tetap bunyi.
+     * KENAPA setAlarmClock? Ini jenis alarm yang diperlakukan sistem sebagai
+     * alarm jam sungguhan: tidak ditunda Doze, tidak dibatasi kuota, dan tidak
+     * butuh izin exact alarm. (Efek sampingnya: ikon alarm muncul di status bar.)
+     *
+     * Kalau setAlarmClock gagal, jatuh ke CADANGAN: alarm biasa
+     * (setAndAllowWhileIdle) ditambah wake lock, supaya tick Handler tetap
+     * jalan dan alarm tetap bunyi.
+     *
+     * Waktu habis juga disimpan ke RunningStore supaya bisa dipulihkan kalau
+     * proses app dimatikan sistem sebelum alarm berbunyi.
      */
     private fun scheduleFinishAlarm() {
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val pending = finishAlarmPendingIntent()
-        val triggerAt = engine.endElapsedMs() // basis elapsedRealtime, sama dengan TimerEngine
+        val triggerWall = System.currentTimeMillis() + engine.remainingMs()
+        RunningStore.setEndWall(this, triggerWall)
 
-        var exactOk = false
+        var ok = false
         try {
-            val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                am.canScheduleExactAlarms()
-            } else {
-                true // di bawah Android 12 tidak perlu izin khusus
-            }
-            if (allowed) {
-                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
-                exactOk = true
-            }
-        } catch (e: SecurityException) {
-            exactOk = false
+            val showPending = PendingIntent.getActivity(
+                this, ALARM_SHOW_REQUEST_CODE, Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(triggerWall, showPending), pending)
+            ok = true
+        } catch (e: Exception) {
+            Log.e(TAG, "setAlarmClock gagal, pakai cadangan", e)
         }
 
-        if (exactOk) {
+        if (ok) {
             releaseWakeLock() // jalur utama: tidak perlu menahan CPU
         } else {
             try {
-                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+                am.setAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, engine.endElapsedMs(), pending
+                )
             } catch (e: Exception) {
                 // Tanpa alarm sistem pun wake lock di bawah tetap menjaga tick Handler
+                Log.e(TAG, "setAndAllowWhileIdle gagal", e)
             }
             acquireWakeLock()
         }
@@ -304,6 +374,7 @@ class TimerForegroundService : Service() {
     private fun cancelFinishAlarm() {
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         am.cancel(finishAlarmPendingIntent())
+        RunningStore.clear(this)
     }
 
     /** PendingIntent yang selalu sama (request code tetap), jadi bisa dijadwalkan ulang dan dibatalkan. */

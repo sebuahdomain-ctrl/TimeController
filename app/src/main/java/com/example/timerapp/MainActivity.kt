@@ -1,8 +1,10 @@
 package com.example.timerapp
 
+import android.app.NotificationManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.TextView
@@ -35,10 +37,31 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (Settings.canDrawOverlays(this)) {
-            startForegroundServiceTimer()
+            checkFullScreenIntentThenStart()
         } else {
             Toast.makeText(this, "Izin overlay belum diaktifkan, popup tidak akan muncul", Toast.LENGTH_LONG).show()
         }
+    }
+
+    // Launcher untuk balik dari layar pengaturan izin layar penuh (Android 14+)
+    private val fullScreenSettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (!canUseFullScreenIntentCompat()) {
+            Toast.makeText(
+                this,
+                "Izin layar penuh belum aktif, halaman Matikan tidak muncul saat layar mati",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        checkBatteryThenStart()
+    }
+
+    // Launcher untuk balik dari dialog pengecualian optimasi baterai
+    private val batterySettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        startForegroundServiceTimer()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,13 +116,62 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkOverlayThenStart() {
         if (Settings.canDrawOverlays(this)) {
-            startForegroundServiceTimer()
+            checkFullScreenIntentThenStart()
         } else {
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
             overlaySettingsLauncher.launch(intent)
+        }
+    }
+
+    /** Android 14+: izin "layar penuh" bisa dimatikan user. Tanpa itu, halaman Matikan tidak muncul di layar mati. */
+    private fun canUseFullScreenIntentCompat(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        return getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+    }
+
+    private fun checkFullScreenIntentThenStart() {
+        if (canUseFullScreenIntentCompat()) {
+            checkBatteryThenStart()
+        } else {
+            Toast.makeText(this, "Aktifkan izin notifikasi layar penuh untuk app ini", Toast.LENGTH_LONG).show()
+            try {
+                fullScreenSettingsLauncher.launch(
+                    Intent(
+                        Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            } catch (e: Exception) {
+                checkBatteryThenStart()
+            }
+        }
+    }
+
+    /**
+     * Minta pengecualian optimasi baterai. Ditanyakan sekali saja (kalau ditolak
+     * tidak dipaksa lagi tiap Start). Di ColorOS ini penting supaya app tidak
+     * dibekukan saat layar mati.
+     */
+    private fun checkBatteryThenStart() {
+        val pm = getSystemService(PowerManager::class.java)
+        val prefs = getSharedPreferences("timer_prefs", MODE_PRIVATE)
+        if (pm.isIgnoringBatteryOptimizations(packageName) || prefs.getBoolean("battery_asked", false)) {
+            startForegroundServiceTimer()
+            return
+        }
+        prefs.edit().putBoolean("battery_asked", true).apply()
+        try {
+            batterySettingsLauncher.launch(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName")
+                )
+            )
+        } catch (e: Exception) {
+            startForegroundServiceTimer()
         }
     }
 

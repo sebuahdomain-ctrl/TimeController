@@ -4,20 +4,24 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
+import android.util.Log
+import androidx.core.content.ContextCompat
 
 /**
  * Penerima alarm sistem (AlarmManager) yang berbunyi tepat saat hitung mundur
  * habis. Tugasnya kecil: menahan HP tetap bangun beberapa detik, lalu
  * meneruskan ACTION_TIMER_DONE ke TimerForegroundService. Logika "selesai"
  * (pindah ke FINISHED, alarm berbunyi) tetap ada di service.
+ *
+ * PENTING: receiver ini TIDAK boleh berhenti hanya karena service belum
+ * hidup. Kalau sistem mematikan proses app saat layar mati, alarm ini justru
+ * datang ke proses yang baru; service harus dihidupkan lagi (lihat
+ * TimerForegroundService.handleTimerDone, yang memulihkan timer dari RunningStore).
  */
 class TimerAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TimerForegroundService.ACTION_TIMER_DONE) return
-
-        // Service sudah mati? Abaikan saja, jangan crash.
-        if (!TimerForegroundService.isRunning) return
 
         // Sistem cuma menahan HP tetap bangun selama onReceive() berjalan,
         // padahal service baru mulai bekerja sesaat sesudahnya. Jadi kita
@@ -29,20 +33,24 @@ class TimerAlarmReceiver : BroadcastReceiver() {
             lock.setReferenceCounted(false)
             lock.acquire(HANDOFF_WAKE_MS)
         } catch (e: Exception) {
-            // Tanpa wake lock pun tetap coba teruskan ke service
+            Log.e(TAG, "Wake lock handoff gagal", e)
         }
 
+        // startForegroundService (bukan startService): boleh dari latar belakang
+        // untuk alarm exact/alarm jam, dan bisa menghidupkan service yang sudah mati.
         try {
-            context.startService(
+            ContextCompat.startForegroundService(
+                context,
                 Intent(context, TimerForegroundService::class.java)
                     .setAction(TimerForegroundService.ACTION_TIMER_DONE)
             )
         } catch (e: Exception) {
-            // Sistem menolak start service: abaikan
+            Log.e(TAG, "Gagal memulai service alarm", e)
         }
     }
 
     private companion object {
+        const val TAG = "TimerAlarmReceiver"
         const val HANDOFF_WAKE_MS = 10_000L
     }
 }

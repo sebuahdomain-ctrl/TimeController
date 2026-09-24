@@ -27,6 +27,10 @@
     <!-- Izin untuk menampilkan popup di atas aplikasi lain -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- Minta pengecualian optimasi baterai supaya sistem (terutama ColorOS)
+         tidak membekukan atau mematikan app saat layar mati -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -62,13 +66,16 @@
             android:noHistory="true"
             android:taskAffinity="" />
 
-        <!-- Layar alarm penuh: dibuka full-screen intent notifikasi alarm,
-             tampil di atas kunci layar (showWhenLocked/turnScreenOn diatur di kode) -->
+        <!-- Layar alarm penuh: dibuka full-screen intent notifikasi alarm.
+             showWhenLocked/turnScreenOn dipasang di sini (dibaca sistem SEBELUM
+             activity dibuat, jadi layar mati pasti dinyalakan) dan juga di kode. -->
         <activity
             android:name=".AlarmActivity"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:taskAffinity="" />
 
         <!-- Foreground service pemegang notifikasi persisten -->

@@ -85,6 +85,15 @@ class TimerEngine {
         state = TimerState.RUNNING
     }
 
+    /**
+     * Pulihkan keadaan RUNNING dengan sisa waktu tertentu. Dipakai kalau proses
+     * app sempat dimatikan sistem lalu hidup lagi (lihat RunningStore).
+     */
+    fun restoreRunning(remainingMs: Long) {
+        endTimeMs = SystemClock.elapsedRealtime() + maxOf(remainingMs, 0L)
+        state = TimerState.RUNNING
+    }
+
     /** Kembali ke IDLE (menampilkan durasi terpilih). Kalau sudah IDLE, tidak ada yang berubah. */
     fun reset() {
         state = TimerState.IDLE
