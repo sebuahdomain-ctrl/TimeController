@@ -8,8 +8,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
-    <!-- Izin agar hitung mundur dan alarm tetap tepat waktu saat layar mati -->
+    <!-- Wake lock singkat saat alarm sistem berbunyi (TimerAlarmReceiver) dan
+         wake lock cadangan kalau alarm exact tidak boleh dipasang -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- Alarm exact (AlarmManager) supaya timer panjang berbunyi tepat waktu
+         tanpa menahan CPU tetap bangun. SCHEDULE_EXACT_ALARM dipakai di
+         Android 12 (API 31-32); mulai Android 13 pakai USE_EXACT_ALARM
+         (izin otomatis untuk app timer/alarm). Di bawah Android 12 tidak perlu izin. -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
     <!-- Izin untuk menampilkan popup di atas aplikasi lain -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -64,6 +74,12 @@
              (Play/Pause sebagai cadangan) tanpa membuka Activity -->
         <receiver
             android:name=".NotificationActionReceiver"
+            android:exported="false" />
+
+        <!-- Menerima alarm sistem (AlarmManager) saat hitung mundur habis,
+             lalu meneruskannya ke TimerForegroundService -->
+        <receiver
+            android:name=".TimerAlarmReceiver"
             android:exported="false" />
 
     </application>

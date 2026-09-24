@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lingkaran kecil untuk titik dua di antara roda menit dan detik
+     (dipakai dua kali, ditumpuk vertikal di overlay_popup.xml). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@color/popup_text_muted" />
+    <size
+        android:width="6dp"
+        android:height="6dp" />
+</shape>

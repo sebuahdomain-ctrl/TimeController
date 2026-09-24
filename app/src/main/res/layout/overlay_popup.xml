@@ -50,67 +50,82 @@
 
     </LinearLayout>
 
-    <!-- Dua roda angka: menit dan detik -->
+    <!-- Dua roda angka (menit dan detik) dengan titik dua di antaranya.
+         Satu baris: roda menit | titik dua | roda detik.
+         Titik dua SENGAJA digambar dari dua lingkaran, bukan TextView, karena
+         glyph ":" di font selalu tampak agak rendah. Wadahnya setinggi roda
+         (match_parent terhadap baris ini, tinggi baris = tinggi roda) dengan
+         gravity center, jadi titik tengah kedua lingkaran tepat di tengah
+         angka terpilih (di antara dua garis pemisah roda). Jarak antar-pusat
+         lingkaran = 6dp (diameter) + 9dp (margin) = 15dp. -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:orientation="horizontal">
 
-        <LinearLayout
+        <NumberPicker
+            android:id="@+id/npMinute"
             android:layout_width="96dp"
             android:layout_height="wrap_content"
+            android:descendantFocusability="blocksDescendants" />
+
+        <LinearLayout
+            android:layout_width="32dp"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:gravity="center">
 
-            <NumberPicker
-                android:id="@+id/npMinute"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:descendantFocusability="blocksDescendants" />
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:background="@drawable/bg_colon_dot" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="menit"
-                android:textSize="12sp"
-                android:textColor="@color/popup_text_secondary" />
+            <View
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginTop="9dp"
+                android:background="@drawable/bg_colon_dot" />
 
         </LinearLayout>
+
+        <NumberPicker
+            android:id="@+id/npSecond"
+            android:layout_width="96dp"
+            android:layout_height="wrap_content"
+            android:descendantFocusability="blocksDescendants" />
+
+    </LinearLayout>
+
+    <!-- Label di bawah roda. Lebarnya sama dengan baris roda di atas
+         (96dp + 32dp wadah titik dua + 96dp), supaya tiap label tepat di
+         bawah rodanya. -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:text=":"
-            android:textSize="32sp"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/popup_text_muted" />
-
-        <LinearLayout
             android:layout_width="96dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal">
+            android:gravity="center"
+            android:text="menit"
+            android:textSize="12sp"
+            android:textColor="@color/popup_text_secondary" />
 
-            <NumberPicker
-                android:id="@+id/npSecond"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:descendantFocusability="blocksDescendants" />
+        <View
+            android:layout_width="32dp"
+            android:layout_height="0dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="detik"
-                android:textSize="12sp"
-                android:textColor="@color/popup_text_secondary" />
-
-        </LinearLayout>
+        <TextView
+            android:layout_width="96dp"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="detik"
+            android:textSize="12sp"
+            android:textColor="@color/popup_text_secondary" />
 
     </LinearLayout>
 

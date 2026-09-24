@@ -14,10 +14,11 @@ enum class TimerState { IDLE, RUNNING, PAUSED, FINISHED }
 class TimerEngine {
 
     companion object {
-        // Durasi default. Nanti popup Atur tinggal mengubah properti durationMs.
+        // Durasi bawaan kalau user belum pernah memilih durasi lewat popup Atur.
+        // Dipakai DurationStore sebagai nilai awal.
         const val DEFAULT_DURATION_MS = 5_000L
 
-        /** Ubah milidetik jadi "mm:ss", dibulatkan ke ATAS (ceil) per detik. */
+        /** Ubah milidetik jadi "mm:ss", dibulatkan ke ATAS (ceil) per detik. Menit boleh sampai 99. */
         fun formatTime(remainingMs: Long): String {
             val totalSeconds = (maxOf(remainingMs, 0L) + 999L) / 1000L
             val minutes = totalSeconds / 60L
@@ -26,7 +27,10 @@ class TimerEngine {
         }
     }
 
-    /** Durasi hitung mundur. Gampang diganti (misal dari popup Atur). */
+    /**
+     * Durasi terpilih. Diisi service dari DurationStore (saat kembali ke IDLE)
+     * atau dari popup Atur (lewat startFresh).
+     */
     var durationMs: Long = DEFAULT_DURATION_MS
 
     var state: TimerState = TimerState.IDLE
@@ -46,6 +50,12 @@ class TimerEngine {
         TimerState.FINISHED -> 0L
     }
 
+    /**
+     * Waktu berakhir (basis SystemClock.elapsedRealtime). Hanya berarti saat
+     * RUNNING; dipakai service untuk menjadwalkan AlarmManager.
+     */
+    fun endElapsedMs(): Long = endTimeMs
+
     /** Aksi tombol Play/Pause sesuai tabel keadaan. */
     fun playPause() {
         when (state) {
@@ -64,7 +74,18 @@ class TimerEngine {
         }
     }
 
-    /** Kembali ke IDLE (00:05). Kalau sudah IDLE, tidak ada yang berubah. */
+    /**
+     * Mulai hitung mundur baru dari durasi yang diberikan, apa pun keadaan
+     * sebelumnya (IDLE, RUNNING, PAUSED, atau FINISHED). Dipakai tombol Mulai
+     * di popup Atur.
+     */
+    fun startFresh(newDurationMs: Long) {
+        durationMs = newDurationMs
+        endTimeMs = SystemClock.elapsedRealtime() + newDurationMs
+        state = TimerState.RUNNING
+    }
+
+    /** Kembali ke IDLE (menampilkan durasi terpilih). Kalau sudah IDLE, tidak ada yang berubah. */
     fun reset() {
         state = TimerState.IDLE
     }

@@ -27,6 +27,9 @@ class OverlayPopupService : Service() {
     private var windowManager: WindowManager? = null
     private var popupView: View? = null
 
+    // Flag sekali-pakai: mencegah ketukan ganda pada tombol Mulai
+    private var startConsumed = false
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Kalau popup sudah tampil, jangan dobel
         if (popupView != null) {
@@ -44,6 +47,7 @@ class OverlayPopupService : Service() {
     }
 
     private fun showPopup() {
+        startConsumed = false
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         // Popup di-inflate dari context Service, jadi tidak otomatis ikut
@@ -97,11 +101,10 @@ class OverlayPopupService : Service() {
         configurePicker(npMinute, maxValue = 99)
         configurePicker(npSecond, maxValue = 59)
 
-        // Nilai awal dari TimerEngine.DEFAULT_DURATION_MS (00:05). Nilai
-        // roda belum dipakai untuk apa pun (menyusul di tahap logika).
-        val defaultMs = TimerEngine.DEFAULT_DURATION_MS
-        npMinute.value = (defaultMs / 60_000L).toInt()
-        npSecond.value = ((defaultMs / 1000L) % 60L).toInt()
+        // Nilai awal kedua roda = durasi terpilih (pertama kali 00:05)
+        val durationMs = DurationStore.get(this)
+        npMinute.value = (durationMs / 60_000L).toInt().coerceIn(0, 99)
+        npSecond.value = ((durationMs / 1000L) % 60L).toInt()
     }
 
     private fun configurePicker(picker: NumberPicker, maxValue: Int) {
@@ -122,31 +125,83 @@ class OverlayPopupService : Service() {
     }
 
     private fun setupClicks(view: View) {
+        val npMinute: NumberPicker = view.findViewById(R.id.npMinute)
+        val npSecond: NumberPicker = view.findViewById(R.id.npSecond)
         val btnClose: ImageButton = view.findViewById(R.id.btnClosePopup)
+        val btnMulai: TextView = view.findViewById(R.id.btnMulai)
+        val btnReset: TextView = view.findViewById(R.id.btnReset)
+
+        // Mulai hanya boleh dipakai kalau roda bukan 00:00
+        fun updateStartButton() {
+            val enabled = npMinute.value != 0 || npSecond.value != 0
+            btnMulai.isEnabled = enabled
+            btnMulai.isClickable = enabled
+            btnMulai.alpha = if (enabled) 1f else 0.4f
+        }
+
+        // Isi kedua roda sekaligus (tidak memicu listener roda, jadi tombol Mulai diperbarui manual)
+        fun setWheels(minutes: Int, seconds: Int) {
+            npMinute.value = minutes
+            npSecond.value = seconds
+            updateStartButton()
+        }
+
         btnClose.setOnClickListener {
             removePopup()
             stopSelf()
         }
 
-        // Hanya tampilan: Mulai, Reset, dan 6 pilihan cepat belum ada
-        // logikanya (menyusul di tahap logika).
-        val btnMulai: TextView = view.findViewById(R.id.btnMulai)
-        val btnReset: TextView = view.findViewById(R.id.btnReset)
-        val btnQuick1: TextView = view.findViewById(R.id.btnQuick1Min)
-        val btnQuick2: TextView = view.findViewById(R.id.btnQuick2Min)
-        val btnQuick5: TextView = view.findViewById(R.id.btnQuick5Min)
-        val btnQuick10: TextView = view.findViewById(R.id.btnQuick10Min)
-        val btnQuick20: TextView = view.findViewById(R.id.btnQuick20Min)
-        val btnQuick30: TextView = view.findViewById(R.id.btnQuick30Min)
+        // Tiap roda digeser, keadaan tombol Mulai ikut diperbarui
+        npMinute.setOnValueChangedListener { _, _, _ -> updateStartButton() }
+        npSecond.setOnValueChangedListener { _, _, _ -> updateStartButton() }
 
-        btnMulai.setOnClickListener { /* TODO logika */ }
-        btnReset.setOnClickListener { /* TODO logika */ }
-        btnQuick1.setOnClickListener { /* TODO logika */ }
-        btnQuick2.setOnClickListener { /* TODO logika */ }
-        btnQuick5.setOnClickListener { /* TODO logika */ }
-        btnQuick10.setOnClickListener { /* TODO logika */ }
-        btnQuick20.setOnClickListener { /* TODO logika */ }
-        btnQuick30.setOnClickListener { /* TODO logika */ }
+        // 6 pilihan cepat: hanya mengisi roda (menit = N, detik = 0),
+        // TIDAK memulai timer dan popup tetap terbuka.
+        val quickChoices = listOf(
+            R.id.btnQuick1Min to 1,
+            R.id.btnQuick2Min to 2,
+            R.id.btnQuick5Min to 5,
+            R.id.btnQuick10Min to 10,
+            R.id.btnQuick20Min to 20,
+            R.id.btnQuick30Min to 30
+        )
+        for ((buttonId, minutes) in quickChoices) {
+            val chip: TextView = view.findViewById(buttonId)
+            chip.setOnClickListener { setWheels(minutes, 0) }
+        }
+
+        // Reset: kedua roda kembali ke 00:00. Popup tetap terbuka dan timer
+        // yang sedang berjalan tidak disentuh.
+        btnReset.setOnClickListener { setWheels(0, 0) }
+
+        // Mulai: simpan durasi, kirim ke service, lalu tutup popup
+        btnMulai.setOnClickListener {
+            if (startConsumed) return@setOnClickListener
+            val durationMs = (npMinute.value * 60L + npSecond.value) * 1000L
+            if (durationMs <= 0L) return@setOnClickListener
+            startConsumed = true
+
+            DurationStore.set(this, durationMs)
+
+            // Kalau service timer sedang tidak hidup, jangan dihidupkan lewat
+            // jalan ini (nanti jadi service tanpa notifikasi): cukup abaikan.
+            if (TimerForegroundService.isRunning) {
+                try {
+                    startService(
+                        Intent(this, TimerForegroundService::class.java)
+                            .setAction(TimerForegroundService.ACTION_START_WITH_DURATION)
+                            .putExtra(TimerForegroundService.EXTRA_DURATION_MS, durationMs)
+                    )
+                } catch (e: Exception) {
+                    // Sistem menolak start service: abaikan
+                }
+            }
+
+            removePopup()
+            stopSelf()
+        }
+
+        updateStartButton()
     }
 
     private fun removePopup() {

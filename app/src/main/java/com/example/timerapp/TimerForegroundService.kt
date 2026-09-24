@@ -1,5 +1,6 @@
 package com.example.timerapp
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -29,6 +30,16 @@ class TimerForegroundService : Service() {
         const val ACTION_RESET = "com.example.timerapp.ACTION_RESET"
         const val ACTION_STOP_ALARM = "com.example.timerapp.ACTION_STOP_ALARM"
 
+        // Dari tombol Mulai di popup Atur: mulai hitung mundur baru dari durasi yang dipilih
+        const val ACTION_START_WITH_DURATION = "com.example.timerapp.ACTION_START_WITH_DURATION"
+        const val EXTRA_DURATION_MS = "com.example.timerapp.EXTRA_DURATION_MS"
+
+        // Dikirim TimerAlarmReceiver saat alarm sistem (AlarmManager) berbunyi: waktu habis
+        const val ACTION_TIMER_DONE = "com.example.timerapp.ACTION_TIMER_DONE"
+
+        // Request code tetap untuk PendingIntent alarm sistem (1, 4, 5, 6 sudah dipakai tombol notifikasi)
+        private const val ALARM_REQUEST_CODE = 7
+
         // Alarm berhenti sendiri setelah 60 detik
         const val ALARM_MAX_MS = 60_000L
 
@@ -41,6 +52,7 @@ class TimerForegroundService : Service() {
     private val engine = TimerEngine()
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var alarmPlayer: AlarmPlayer
+    // Hanya dipakai di jalur CADANGAN (kalau alarm exact tidak boleh dipasang)
     private var wakeLock: PowerManager.WakeLock? = null
 
     // Isi notifikasi terakhir yang ditampilkan (supaya tidak update kalau tidak berubah)
@@ -61,8 +73,9 @@ class TimerForegroundService : Service() {
     }
 
     override fun onDestroy() {
-        // Hentikan semuanya: hitungan, alarm, wake lock, notifikasi alarm
+        // Hentikan semuanya: hitungan, alarm sistem, bunyi alarm, wake lock, notifikasi alarm
         handler.removeCallbacksAndMessages(null)
+        cancelFinishAlarm()
         alarmPlayer.stop()
         notificationManager().cancel(ALARM_NOTIFICATION_ID)
         releaseWakeLock()
@@ -77,6 +90,9 @@ class TimerForegroundService : Service() {
             ACTION_PLAY_PAUSE -> handlePlayPause()
             ACTION_RESET -> handleReset()
             ACTION_STOP_ALARM -> handleStopAlarm()
+            ACTION_START_WITH_DURATION ->
+                handleStartWithDuration(intent?.getLongExtra(EXTRA_DURATION_MS, 0L) ?: 0L)
+            ACTION_TIMER_DONE -> handleTimerDone()
             // Tanpa action (Start dari app / restart sistem): mulai bersih di IDLE
             else -> startClean()
         }
@@ -99,14 +115,49 @@ class TimerForegroundService : Service() {
         }
         engine.playPause()
         if (engine.state == TimerState.RUNNING) {
-            acquireWakeLock()
-            scheduleTick()
+            armCountdown() // mulai atau lanjut dari jeda
         } else {
-            // Jeda: bekukan hitungan
+            // Jeda: bekukan hitungan, batalkan alarm sistem
             handler.removeCallbacks(tickRunnable)
+            cancelFinishAlarm()
             releaseWakeLock()
         }
         refreshNotification()
+    }
+
+    /**
+     * Tombol Mulai di popup Atur. Apa pun keadaan sekarang (IDLE, RUNNING,
+     * PAUSED, atau alarm sedang berbunyi): hentikan semuanya, simpan durasi
+     * baru sebagai durasi terpilih, lalu langsung hitung mundur dari durasi itu.
+     */
+    private fun handleStartWithDuration(requestedMs: Long) {
+        if (requestedMs <= 0L) return // data tidak masuk akal: abaikan
+        handler.removeCallbacks(tickRunnable)
+        cancelFinishAlarm()
+        releaseWakeLock()
+        stopAlarm()
+
+        DurationStore.set(this, requestedMs)
+        engine.startFresh(DurationStore.get(this))
+        armCountdown()
+        refreshNotification()
+    }
+
+    /**
+     * Alarm sistem berbunyi: waktu habis. Idempotent: hanya bekerja kalau masih
+     * RUNNING dan waktunya memang sudah habis, jadi tidak mungkin berbunyi dobel
+     * dengan jalur tick Handler (yang memakai finishIfDue yang sama).
+     */
+    private fun handleTimerDone() {
+        if (engine.state != TimerState.RUNNING) return
+        if (engine.finishIfDue()) {
+            handler.removeCallbacks(tickRunnable)
+            onFinished()
+        } else {
+            // Alarm datang sedikit lebih awal dari waktu habis: pasang ulang
+            scheduleTick()
+            scheduleFinishAlarm()
+        }
     }
 
     private fun handleReset() {
@@ -125,12 +176,15 @@ class TimerForegroundService : Service() {
         }
     }
 
-    /** Berhenti total (hitungan, alarm, wake lock) dan kembali ke IDLE. */
+    /** Berhenti total (hitungan, alarm sistem, bunyi alarm, wake lock) dan kembali ke IDLE. */
     private fun resetToIdle() {
         handler.removeCallbacks(tickRunnable)
+        cancelFinishAlarm()
         stopAlarm()
         releaseWakeLock()
         engine.reset()
+        // IDLE menampilkan durasi terpilih user (dari DurationStore)
+        engine.durationMs = DurationStore.get(this)
     }
 
     // ---------------------------------------------------------------
@@ -153,6 +207,7 @@ class TimerForegroundService : Service() {
     }
 
     private fun onFinished() {
+        cancelFinishAlarm() // alarm sistem sudah tidak diperlukan lagi
         alarmPlayer.start()
         releaseWakeLock() // MediaPlayer memegang wake lock sendiri selama bunyi
         refreshNotification()
@@ -169,7 +224,77 @@ class TimerForegroundService : Service() {
     }
 
     // ---------------------------------------------------------------
-    // Wake lock
+    // Alarm sistem (AlarmManager)
+    // ---------------------------------------------------------------
+
+    /** Dipanggil tiap masuk RUNNING (mulai baru atau lanjut dari jeda). */
+    private fun armCountdown() {
+        scheduleTick()
+        scheduleFinishAlarm()
+    }
+
+    /**
+     * KENAPA ALARMMANAGER? Durasi bisa sampai 99 menit 59 detik. Menahan CPU
+     * tetap bangun selama itu (wake lock) boros baterai. Sebagai gantinya kita
+     * titip "bangunkan aku tepat di detik X" ke sistem. HP boleh tidur, dan
+     * sistem yang membangunkannya persis saat waktu habis.
+     *
+     * Kalau alarm exact tidak boleh dipasang (izin dicabut di Android 12, atau
+     * sistem melempar SecurityException), jatuh ke CADANGAN: alarm biasa
+     * (setAndAllowWhileIdle) ditambah wake lock seperti sebelumnya, supaya
+     * tick Handler tetap jalan dan alarm tetap bunyi.
+     */
+    private fun scheduleFinishAlarm() {
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val pending = finishAlarmPendingIntent()
+        val triggerAt = engine.endElapsedMs() // basis elapsedRealtime, sama dengan TimerEngine
+
+        var exactOk = false
+        try {
+            val allowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                am.canScheduleExactAlarms()
+            } else {
+                true // di bawah Android 12 tidak perlu izin khusus
+            }
+            if (allowed) {
+                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+                exactOk = true
+            }
+        } catch (e: SecurityException) {
+            exactOk = false
+        }
+
+        if (exactOk) {
+            releaseWakeLock() // jalur utama: tidak perlu menahan CPU
+        } else {
+            try {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending)
+            } catch (e: Exception) {
+                // Tanpa alarm sistem pun wake lock di bawah tetap menjaga tick Handler
+            }
+            acquireWakeLock()
+        }
+    }
+
+    /** Batalkan alarm sistem. Aman dipanggil kapan saja (walau belum dijadwalkan). */
+    private fun cancelFinishAlarm() {
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.cancel(finishAlarmPendingIntent())
+    }
+
+    /** PendingIntent yang selalu sama (request code tetap), jadi bisa dijadwalkan ulang dan dibatalkan. */
+    private fun finishAlarmPendingIntent(): PendingIntent {
+        val intent = Intent(this, TimerAlarmReceiver::class.java).apply {
+            action = ACTION_TIMER_DONE
+        }
+        return PendingIntent.getBroadcast(
+            this, ALARM_REQUEST_CODE, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    // ---------------------------------------------------------------
+    // Wake lock (hanya jalur cadangan, lihat scheduleFinishAlarm)
     // ---------------------------------------------------------------
 
     private fun acquireWakeLock() {
