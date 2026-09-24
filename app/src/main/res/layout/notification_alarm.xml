@@ -19,12 +19,11 @@
         android:fontFamily="sans-serif-medium"
         android:textColor="@color/notif_content_color" />
 
-    <!-- Garis pemisah tipis -->
-    <View
+    <!-- Garis pemisah tipis. Pakai FrameLayout, BUKAN View: RemoteViews menolak <View> polos -->
+    <FrameLayout
         android:layout_width="1dp"
         android:layout_height="28dp"
-        android:alpha="0.2"
-        android:background="@color/notif_content_color" />
+        android:background="#33808080" />
 
     <TextView
         android:id="@+id/btnMatikan"
