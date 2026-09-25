@@ -5,21 +5,17 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
-import android.media.RingtoneManager
-import android.net.Uri
 import android.os.PowerManager
 import android.util.Log
 
 /**
- * Memutar nada alarm berulang lewat stream ALARM (ikut volume alarm HP,
- * bukan volume media). Semua error ditangkap supaya tidak pernah crash.
- *
- * Nada dicoba berurutan: alarm milik user -> alarm default -> notifikasi ->
- * ringtone -> nada bawaan app (res/raw/alarm_beep.wav). Nada terakhir selalu
- * ada di dalam app, jadi alarm tidak mungkin bisu hanya karena nada sistem
- * tidak bisa dibaca (izin, file hilang, dsb).
+ * Memutar nada alarm bawaan app (res/raw/alarm_timer.mp3, dipilih sendiri oleh
+ * user) secara berulang, lewat stream ALARM (ikut volume alarm HP, bukan
+ * volume media). Nadanya selalu sama tiap alarm berbunyi -- tidak bergantung
+ * pada nada alarm sistem yang bisa beda-beda tergantung pengaturan tiap HP.
  *
  * Nada disiapkan lewat prepareAsync() supaya main thread tidak tertahan.
+ * Semua error ditangkap supaya tidak pernah crash.
  */
 class AlarmPlayer(private val context: Context) {
 
@@ -39,78 +35,15 @@ class AlarmPlayer(private val context: Context) {
         stop()
         val gen = generation
         requestFocus()
-        playFrom(candidates(), 0, gen)
-    }
-
-    /** Berhenti dan lepaskan semua sumber daya. */
-    fun stop() {
-        generation++
-        val mp = player
-        player = null
-        if (mp != null) {
-            try {
-                mp.release()
-            } catch (e: Exception) {
-                Log.e(TAG, "release gagal", e)
-            }
-        }
-        abandonFocus()
-    }
-
-    /** null = pakai nada bawaan app di res/raw. */
-    private fun candidates(): List<Uri?> {
-        val list = ArrayList<Uri?>()
-        fun add(block: () -> Uri?) {
-            try {
-                block()?.let { list.add(it) }
-            } catch (e: Exception) {
-                Log.e(TAG, "gagal ambil nada", e)
-            }
-        }
-        add { RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM) }
-        add { RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) }
-        add { RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) }
-        add { RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE) }
-        list.add(null)
-        return list
-    }
-
-    private fun playFrom(sources: List<Uri?>, index: Int, gen: Int) {
-        if (gen != generation) return
-        if (index >= sources.size) {
-            Log.e(TAG, "Tidak ada nada yang bisa diputar")
-            abandonFocus()
-            return
-        }
 
         val mp = MediaPlayer()
-        var handled = false
-
-        // Coba sumber berikutnya (hanya sekali per percobaan)
-        fun next() {
-            if (handled) return
-            handled = true
-            if (player === mp) player = null
-            try {
-                mp.release()
-            } catch (e: Exception) {
-                // diabaikan
-            }
-            playFrom(sources, index + 1, gen)
-        }
-
         try {
             mp.setAudioAttributes(attributes)
             // Jaga CPU tetap hidup selama nada bunyi (layar mati)
             mp.setWakeMode(context, PowerManager.PARTIAL_WAKE_LOCK)
 
-            val uri = sources[index]
-            if (uri != null) {
-                mp.setDataSource(context, uri)
-            } else {
-                context.resources.openRawResourceFd(R.raw.alarm_beep).use { fd ->
-                    mp.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
-                }
+            context.resources.openRawResourceFd(R.raw.alarm_timer).use { fd ->
+                mp.setDataSource(fd.fileDescriptor, fd.startOffset, fd.length)
             }
             mp.isLooping = true
             mp.setOnPreparedListener { prepared ->
@@ -128,19 +61,37 @@ class AlarmPlayer(private val context: Context) {
                     prepared.start()
                 } catch (e: Exception) {
                     Log.e(TAG, "start gagal", e)
-                    next()
                 }
             }
             mp.setOnErrorListener { _, what, extra ->
-                Log.e(TAG, "MediaPlayer error what=$what extra=$extra (sumber #$index)")
-                next()
+                Log.e(TAG, "MediaPlayer error what=$what extra=$extra")
                 true
             }
             mp.prepareAsync()
         } catch (e: Exception) {
-            Log.e(TAG, "Sumber #$index gagal", e)
-            next()
+            Log.e(TAG, "Gagal menyiapkan nada alarm", e)
+            try {
+                mp.release()
+            } catch (e2: Exception) {
+                // diabaikan
+            }
+            abandonFocus()
         }
+    }
+
+    /** Berhenti dan lepaskan semua sumber daya. */
+    fun stop() {
+        generation++
+        val mp = player
+        player = null
+        if (mp != null) {
+            try {
+                mp.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "release gagal", e)
+            }
+        }
+        abandonFocus()
     }
 
     private fun requestFocus() {
