@@ -20,7 +20,12 @@ import androidx.core.app.NotificationCompat
 class TimerForegroundService : Service() {
 
     companion object {
-        const val CHANNEL_ID = "timer_persistent_channel"
+        // Nama channel diganti "_v2" karena importance sebuah NotificationChannel
+        // tidak bisa diubah lagi begitu pernah dibuat di HP user (perubahan
+        // IMPORTANCE_LOW -> DEFAULT di bawah tidak akan berlaku untuk yang sudah
+        // update app kalau ID-nya tetap sama). Channel lama dihapus otomatis.
+        const val CHANNEL_ID = "timer_persistent_channel_v2"
+        private const val OLD_CHANNEL_ID = "timer_persistent_channel"
         const val NOTIFICATION_ID = 1001
 
         // Channel & notifikasi terpisah untuk alarm (melayang / heads-up)
@@ -421,10 +426,16 @@ class TimerForegroundService : Service() {
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Notifikasi Persisten",
-                NotificationManager.IMPORTANCE_LOW // LOW supaya tidak bunyi tiap update, tapi tetap selalu tampil
+                // DEFAULT (bukan LOW) supaya notifikasi ini diranking sistem lebih
+                // tinggi daripada notifikasi biasa (LOW/MIN) app lain, jadi lebih
+                // sering ada di atas. Suara & getar tetap dimatikan manual di bawah
+                // supaya tidak berbunyi tiap detik dia update.
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Notifikasi yang selalu aktif selama service berjalan"
                 setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
             }
 
             // Channel alarm: HIGH supaya muncul melayang. Sengaja tanpa suara &
@@ -443,6 +454,9 @@ class TimerForegroundService : Service() {
             val manager = notificationManager()
             manager.createNotificationChannel(channel)
             manager.createNotificationChannel(alarmChannel)
+            // Hapus channel lama (importance LOW) peninggalan versi sebelumnya,
+            // supaya tidak nyangkut dua channel timer di pengaturan notifikasi.
+            manager.deleteNotificationChannel(OLD_CHANNEL_ID)
         }
     }
 
@@ -504,7 +518,13 @@ class TimerForegroundService : Service() {
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setOngoing(true) // membuat notifikasi tidak bisa di-swipe hilang
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            // DEFAULT (bukan LOW) + CATEGORY_SERVICE: keduanya sinyal ke sistem
+            // supaya notifikasi foreground-service ini diranking di atas notifikasi
+            // biasa. setPriority ini yang dipakai di Android lama (sebelum channel
+            // ada); di Android 8+ yang menentukan urutan adalah importance channel
+            // di atas, jadi keduanya sengaja disamakan.
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(customView)
             .build()
