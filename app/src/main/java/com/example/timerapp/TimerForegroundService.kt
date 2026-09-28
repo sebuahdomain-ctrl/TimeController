@@ -88,8 +88,9 @@ class TimerForegroundService : Service() {
     // Dipanggil tiap pergantian detik
     private val tickRunnable = Runnable { onTick() }
 
-    // Alarm berhenti sendiri setelah ALARM_MAX_MS
-    private val alarmTimeoutRunnable = Runnable { stopAlarm() }
+    // Alarm berhenti sendiri setelah ALARM_MAX_MS. Sama seperti tombol Matikan:
+    // bunyi berhenti DAN angka kembali ke durasi terpilih (bukan tertahan di 00:00).
+    private val alarmTimeoutRunnable = Runnable { handleStopAlarm() }
 
     override fun onCreate() {
         super.onCreate()
