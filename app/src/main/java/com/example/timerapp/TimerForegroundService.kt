@@ -57,8 +57,8 @@ class TimerForegroundService : Service() {
         // Dikirim service saat bunyi alarm berhenti, supaya AlarmActivity menutup diri
         const val ACTION_ALARM_STOPPED = "com.example.timerapp.ACTION_ALARM_STOPPED"
 
-        // Alarm berhenti sendiri setelah 60 detik
-        const val ALARM_MAX_MS = 60_000L
+        // Alarm berhenti sendiri setelah 10 detik
+        const val ALARM_MAX_MS = 10_000L
 
         // Dibaca MainActivity.onResume untuk menentukan teks tombol & status.
         @Volatile
@@ -174,6 +174,9 @@ class TimerForegroundService : Service() {
     }
 
     private fun handlePlayPause() {
+        // Durasi 00:00 (belum dipilih): tombol Play tidak berfungsi
+        if (engine.state == TimerState.IDLE && engine.durationMs <= 0L) return
+
         // Kalau sedang FINISHED, alarm dihentikan dulu lalu langsung mulai baru
         if (engine.state == TimerState.FINISHED) {
             stopAlarm()

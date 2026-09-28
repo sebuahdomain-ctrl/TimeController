@@ -101,7 +101,7 @@ class OverlayPopupService : Service() {
         configurePicker(npMinute, maxValue = 99)
         configurePicker(npSecond, maxValue = 59)
 
-        // Nilai awal kedua roda = durasi terpilih (pertama kali 00:05)
+        // Nilai awal kedua roda = durasi terpilih (pertama kali 00:00)
         val durationMs = DurationStore.get(this)
         npMinute.value = (durationMs / 60_000L).toInt().coerceIn(0, 99)
         npSecond.value = ((durationMs / 1000L) % 60L).toInt()

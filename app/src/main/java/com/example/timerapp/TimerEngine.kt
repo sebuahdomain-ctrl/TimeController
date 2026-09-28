@@ -15,8 +15,9 @@ class TimerEngine {
 
     companion object {
         // Durasi bawaan kalau user belum pernah memilih durasi lewat popup Atur.
-        // Dipakai DurationStore sebagai nilai awal.
-        const val DEFAULT_DURATION_MS = 5_000L
+        // Dipakai DurationStore sebagai nilai awal. 0 = tampil 00:00 dan tombol Play
+        // belum berfungsi sampai user memilih durasi.
+        const val DEFAULT_DURATION_MS = 0L
 
         /** Ubah milidetik jadi "mm:ss", dibulatkan ke ATAS (ceil) per detik. Menit boleh sampai 99. */
         fun formatTime(remainingMs: Long): String {
@@ -60,6 +61,7 @@ class TimerEngine {
     fun playPause() {
         when (state) {
             TimerState.IDLE, TimerState.FINISHED -> {
+                if (durationMs <= 0L) return // durasi 00:00: Play tidak berfungsi
                 endTimeMs = SystemClock.elapsedRealtime() + durationMs
                 state = TimerState.RUNNING
             }

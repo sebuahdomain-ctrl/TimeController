@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.app.KeyguardManager
 import android.os.Bundle
+import android.os.PowerManager
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -18,7 +20,7 @@ import androidx.core.content.ContextCompat
  *
  * Dibuka oleh sistem lewat full-screen intent milik notifikasi alarm (lihat
  * TimerForegroundService.showAlarmNotification). Menutup diri sendiri kalau
- * alarm berhenti dari jalur lain (notifikasi, batas 60 detik, timer baru).
+ * alarm berhenti dari jalur lain (notifikasi, batas 10 detik, timer baru).
  */
 class AlarmActivity : Activity() {
 
@@ -33,6 +35,14 @@ class AlarmActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // HP sedang dipakai (layar nyala dan tidak terkunci): halaman layar penuh tidak
+        // perlu. Cukup notifikasi melayang (yang punya tombol Matikan). Cek ini SEBELUM
+        // showOverLockScreen() supaya layar tidak sempat dinyalakan ulang.
+        if (isPhoneInUse()) {
+            finish()
+            return
+        }
 
         showOverLockScreen()
         setContentView(R.layout.activity_alarm)
@@ -53,6 +63,13 @@ class AlarmActivity : Activity() {
         if (!TimerForegroundService.isAlarmRinging) {
             finish()
         }
+    }
+
+    /** True kalau layar sedang nyala DAN kunci layar tidak tampil (user sedang memakai HP). */
+    private fun isPhoneInUse(): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        return pm.isInteractive && !km.isKeyguardLocked
     }
 
     /** Tampil di atas kunci layar, menyalakan layar, dan menjaganya tetap menyala. */
