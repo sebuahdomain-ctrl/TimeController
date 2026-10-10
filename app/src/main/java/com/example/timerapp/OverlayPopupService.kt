@@ -38,9 +38,11 @@ class OverlayPopupService : Service() {
     // Halaman aktif. Selalu mulai dari Timer tiap popup dibuka.
     private var currentPage = PAGE_TIMER
 
-    // Halaman Interval (tampilan saja, belum disimpan dan belum dijalankan):
-    // dua waktu dalam detik (00:00 pada Interval 2 = mati), jumlah ulang,
-    // dan kotak mana yang sedang diedit rodanya (1 atau 2).
+    // Halaman Interval: dua waktu dalam detik (00:00 pada Interval 2 = mati),
+    // jumlah putaran, dan kotak mana yang sedang diedit rodanya (1 atau 2).
+    // Nilai awal diisi loadIntervalState(): kalau sesi interval sedang jalan,
+    // angka putaran = sisa putaran (jadi mundur tiap putaran selesai); kalau
+    // tidak, memakai pengaturan terakhir. Disimpan hanya saat tombol Mulai.
     private var intervalA = 60
     private var intervalB = 120
     private var intervalRepeat = 4
@@ -74,9 +76,7 @@ class OverlayPopupService : Service() {
     private fun showPopup() {
         startConsumed = false
         currentPage = PAGE_TIMER
-        intervalA = 60
-        intervalB = 120
-        intervalRepeat = 4
+        loadIntervalState()
         intervalActive = 1
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
@@ -114,6 +114,21 @@ class OverlayPopupService : Service() {
         params.gravity = Gravity.CENTER
 
         windowManager?.addView(view, params)
+    }
+
+    /** Isi nilai awal halaman Interval (lihat komentar di atas field intervalA). */
+    private fun loadIntervalState() {
+        val session = if (TimerForegroundService.isRunning) IntervalStore.getSession(this) else null
+        if (session != null) {
+            intervalA = session.a
+            intervalB = session.b
+            intervalRepeat = session.roundsLeft
+        } else {
+            val config = IntervalStore.getConfig(this)
+            intervalA = config.a
+            intervalB = config.b
+            intervalRepeat = config.repeat
+        }
     }
 
     /** Lebar popup: 85% lebar layar, maksimal 300dp (kartu dibuat lebih ringkas). */
@@ -161,11 +176,14 @@ class OverlayPopupService : Service() {
         val btnMulai: TextView = view.findViewById(R.id.btnMulai)
         val btnReset: TextView = view.findViewById(R.id.btnReset)
 
-        // Mulai hanya boleh dipakai di halaman Timer dan kalau roda bukan 00:00.
-        // (Halaman Interval belum punya logika jalan, jadi Mulai di sana mati dulu.)
+        // Halaman Timer: Mulai aktif kalau roda bukan 00:00.
+        // Halaman Interval: Mulai aktif kalau Interval 1 bukan 00:00 (Interval 2 boleh 00:00 = mati).
         fun updateStartButton() {
-            val onTimer = currentPage == PAGE_TIMER
-            val enabled = onTimer && (npMinute.value != 0 || npSecond.value != 0)
+            val enabled = if (currentPage == PAGE_TIMER) {
+                npMinute.value != 0 || npSecond.value != 0
+            } else {
+                intervalA > 0
+            }
             btnMulai.isEnabled = enabled
             btnMulai.isClickable = enabled
             btnMulai.alpha = if (enabled) 1f else 0.4f
@@ -218,7 +236,10 @@ class OverlayPopupService : Service() {
         // Mulai: simpan durasi, kirim ke service, lalu tutup popup
         btnMulai.setOnClickListener {
             if (startConsumed) return@setOnClickListener
-            if (currentPage != PAGE_TIMER) return@setOnClickListener
+            if (currentPage == PAGE_INTERVAL) {
+                startInterval()
+                return@setOnClickListener
+            }
             val durationMs = (npMinute.value * 60L + npSecond.value) * 1000L
             if (durationMs <= 0L) return@setOnClickListener
             startConsumed = true
@@ -243,8 +264,38 @@ class OverlayPopupService : Service() {
             stopSelf()
         }
 
-        setupIntervalPage(view)
+        setupIntervalPage(view) { updateStartButton() }
         setupPageSwitch(view) { updateStartButton() }
+    }
+
+    /**
+     * Mulai di halaman Interval: simpan pengaturan, kirim ke service (mulai dari
+     * putaran pertama), lalu tutup popup. Interval 1 wajib terisi.
+     */
+    private fun startInterval() {
+        if (intervalA <= 0) return
+        startConsumed = true
+
+        IntervalStore.setConfig(this, intervalA, intervalB, intervalRepeat)
+
+        // Sama seperti Mulai di halaman Timer: kalau service tidak hidup, jangan
+        // dihidupkan lewat jalan ini (nanti jadi service tanpa notifikasi).
+        if (TimerForegroundService.isRunning) {
+            try {
+                startService(
+                    Intent(this, TimerForegroundService::class.java)
+                        .setAction(TimerForegroundService.ACTION_START_INTERVAL)
+                        .putExtra(TimerForegroundService.EXTRA_INTERVAL_A, intervalA)
+                        .putExtra(TimerForegroundService.EXTRA_INTERVAL_B, intervalB)
+                        .putExtra(TimerForegroundService.EXTRA_INTERVAL_REPEAT, intervalRepeat)
+                )
+            } catch (e: Exception) {
+                // Sistem menolak start service: abaikan
+            }
+        }
+
+        removePopup()
+        stopSelf()
     }
 
     /**
@@ -261,11 +312,13 @@ class OverlayPopupService : Service() {
         String.format(java.util.Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
 
     /**
-     * Halaman Interval (tampilan saja): ketuk Interval 1 / Interval 2 untuk memilih
-     * kotak yang diedit, roda mengubah waktunya, baris Ulangi mengatur jumlah ulang.
-     * Interval 2 di 00:00 tampil redup (artinya mati). Belum ada logika menjalankan.
+     * Halaman Interval: ketuk Interval 1 / Interval 2 untuk memilih kotak yang
+     * diedit, roda mengubah waktunya, baris Ulangi mengatur jumlah putaran.
+     * Interval 2 di 00:00 tampil redup (artinya mati). Yang menjalankan adalah
+     * tombol Mulai (lihat startInterval); [onChanged] dipanggil tiap nilai berubah
+     * supaya tombol Mulai ikut diperbarui.
      */
-    private fun setupIntervalPage(view: View) {
+    private fun setupIntervalPage(view: View, onChanged: () -> Unit) {
         val boxA: View = view.findViewById(R.id.boxInterval1)
         val boxB: View = view.findViewById(R.id.boxInterval2)
         val txtA: TextView = view.findViewById(R.id.txtInterval1)
@@ -287,6 +340,7 @@ class OverlayPopupService : Service() {
             // Interval 2 di 00:00 = mati: redup, kecuali sedang dipilih
             boxB.alpha = if (intervalB == 0 && intervalActive != 2) 0.45f else 1f
             txtRepeat.text = intervalRepeat.toString()
+            onChanged()
         }
 
         // Isi roda dengan waktu kotak yang sedang dipilih
@@ -320,7 +374,7 @@ class OverlayPopupService : Service() {
             refresh()
         }
         btnPlus.setOnClickListener {
-            intervalRepeat = minOf(99, intervalRepeat + 1)
+            intervalRepeat = minOf(IntervalStore.MAX_REPEAT, intervalRepeat + 1)
             refresh()
         }
 

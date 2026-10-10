@@ -5,17 +5,36 @@
     android:orientation="horizontal"
     android:gravity="center_vertical">
 
-    <TextView
-        android:id="@+id/txtNotifTime"
+    <!-- Angka waktu + label kecil "Interval 1 · sisa N putaran" (label hanya tampil di mode Interval) -->
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:gravity="start|center_vertical"
-        android:text="00:00"
-        android:textSize="24sp"
-        android:fontFamily="sans-serif-medium"
-        android:fontFeatureSettings="tnum"
-        android:textColor="@color/notif_content_color" />
+        android:orientation="vertical"
+        android:gravity="start|center_vertical">
+
+        <TextView
+            android:id="@+id/txtNotifTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="start|center_vertical"
+            android:text="00:00"
+            android:textSize="24sp"
+            android:fontFamily="sans-serif-medium"
+            android:fontFeatureSettings="tnum"
+            android:textColor="@color/notif_content_color" />
+
+        <TextView
+            android:id="@+id/txtNotifLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:singleLine="true"
+            android:textSize="11sp"
+            android:alpha="0.7"
+            android:textColor="@color/notif_content_color" />
+
+    </LinearLayout>
 
     <ImageButton
         android:id="@+id/btnPlay"

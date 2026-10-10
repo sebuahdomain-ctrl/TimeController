@@ -40,6 +40,15 @@ class TimerForegroundService : Service() {
         const val ACTION_START_WITH_DURATION = "com.example.timerapp.ACTION_START_WITH_DURATION"
         const val EXTRA_DURATION_MS = "com.example.timerapp.EXTRA_DURATION_MS"
 
+        // Dari tombol Mulai di halaman Interval popup Atur: mulai sesi interval baru
+        const val ACTION_START_INTERVAL = "com.example.timerapp.ACTION_START_INTERVAL"
+        const val EXTRA_INTERVAL_A = "com.example.timerapp.EXTRA_INTERVAL_A"        // detik
+        const val EXTRA_INTERVAL_B = "com.example.timerapp.EXTRA_INTERVAL_B"        // detik, 0 = mati
+        const val EXTRA_INTERVAL_REPEAT = "com.example.timerapp.EXTRA_INTERVAL_REPEAT"
+
+        // Jeda antar interval = lamanya beep. Cuma ini jedanya, setelah itu interval berikutnya langsung jalan.
+        private const val BEEP_GAP_MS = 1_000L
+
         // Dikirim TimerAlarmReceiver saat alarm sistem (AlarmManager) berbunyi: waktu habis
         const val ACTION_TIMER_DONE = "com.example.timerapp.ACTION_TIMER_DONE"
 
@@ -92,10 +101,29 @@ class TimerForegroundService : Service() {
     // bunyi berhenti DAN angka kembali ke durasi terpilih (bukan tertahan di 00:00).
     private val alarmTimeoutRunnable = Runnable { handleStopAlarm() }
 
+    // ---- Mode Interval ----
+    private lateinit var beepPlayer: BeepPlayer
+
+    // Sesi interval sedang berjalan (RUNNING, PAUSED, atau jeda beep)?
+    private var ivActive = false
+    private var ivA = 0          // detik, Interval 1
+    private var ivB = 0          // detik, Interval 2 (0 = mati)
+    private var ivTotal = 1      // jumlah putaran
+    private var ivRound = 1      // putaran sekarang (mulai dari 1)
+    private var ivPhase = 1      // 1 = Interval 1, 2 = Interval 2
+
+    // True selama jeda beep 1 detik antar interval
+    private var inTransition = false
+    private val transitionRunnable = Runnable { finishTransition() }
+
+    // Label terakhir di notifikasi (supaya tidak update kalau tidak berubah)
+    private var lastLabel: String? = null
+
     override fun onCreate() {
         super.onCreate()
         isRunning = true
         alarmPlayer = AlarmPlayer(applicationContext)
+        beepPlayer = BeepPlayer(applicationContext)
         createNotificationChannel()
     }
 
@@ -104,6 +132,8 @@ class TimerForegroundService : Service() {
         handler.removeCallbacksAndMessages(null)
         cancelFinishAlarm()
         alarmPlayer.stop()
+        beepPlayer.stop()
+        IntervalStore.clearSession(this)
         notificationManager().cancel(ALARM_NOTIFICATION_ID)
         notifyAlarmStopped()
         releaseWakeLock()
@@ -135,6 +165,11 @@ class TimerForegroundService : Service() {
             ACTION_STOP_ALARM -> handleStopAlarm()
             ACTION_START_WITH_DURATION ->
                 handleStartWithDuration(intent.getLongExtra(EXTRA_DURATION_MS, 0L))
+            ACTION_START_INTERVAL -> handleStartInterval(
+                intent.getIntExtra(EXTRA_INTERVAL_A, 0),
+                intent.getIntExtra(EXTRA_INTERVAL_B, 0),
+                intent.getIntExtra(EXTRA_INTERVAL_REPEAT, 0)
+            )
             ACTION_TIMER_DONE -> handleTimerDone(fresh)
             // Tanpa action (Start dari app): mulai bersih di IDLE
             else -> startClean()
@@ -155,10 +190,11 @@ class TimerForegroundService : Service() {
             return
         }
         val remaining = endWall - System.currentTimeMillis()
+        loadSession() // kalau tadinya mode Interval, pulihkan putaran dan interval ke berapa
         engine.restoreRunning(remaining)
         if (remaining <= 0L) {
             engine.finishIfDue()
-            onFinished()
+            onCountdownEnd()
         } else {
             armCountdown()
             notificationManager().notify(NOTIFICATION_ID, buildNotification())
@@ -175,6 +211,14 @@ class TimerForegroundService : Service() {
     }
 
     private fun handlePlayPause() {
+        // Jeda beep 1 detik antar interval: tombol ini = Pause. Beep dihentikan dan
+        // hitungan tertahan di awal interval berikutnya (Play lagi = lanjut dari sana).
+        if (inTransition) {
+            cancelTransition()
+            refreshNotification()
+            return
+        }
+
         // Durasi 00:00 (belum dipilih): tombol Play tidak berfungsi
         if (engine.state == TimerState.IDLE && engine.durationMs <= 0L) return
 
@@ -182,6 +226,17 @@ class TimerForegroundService : Service() {
         if (engine.state == TimerState.FINISHED) {
             stopAlarm()
         }
+
+        // Mode Interval: Play dari awal (IDLE) atau setelah selesai (FINISHED)
+        // = mulai sesi interval baru dari putaran pertama.
+        if (!ivActive && IntervalStore.isIntervalMode(this) &&
+            (engine.state == TimerState.IDLE || engine.state == TimerState.FINISHED)
+        ) {
+            val c = IntervalStore.getConfig(this)
+            if (c.a > 0) startIntervalSession(c.a, c.b, c.repeat)
+            return
+        }
+
         engine.playPause()
         if (engine.state == TimerState.RUNNING) {
             armCountdown() // mulai atau lanjut dari jeda
@@ -205,6 +260,10 @@ class TimerForegroundService : Service() {
         cancelFinishAlarm()
         releaseWakeLock()
         stopAlarm()
+        // Timer biasa menggantikan sesi interval (kalau ada)
+        cancelTransition()
+        endIntervalSession()
+        IntervalStore.setIntervalMode(this, false)
 
         DurationStore.set(this, requestedMs)
         engine.startFresh(DurationStore.get(this))
@@ -224,6 +283,7 @@ class TimerForegroundService : Service() {
         if (engine.state != TimerState.RUNNING) {
             val endWall = RunningStore.getEndWall(this)
             if (endWall > 0L) {
+                if (!ivActive) loadSession() // proses baru hidup: pulihkan sesi interval
                 engine.restoreRunning(endWall - System.currentTimeMillis())
             } else {
                 // Alarm nyasar (timer sudah dibatalkan): kalau service ini hidup
@@ -234,7 +294,7 @@ class TimerForegroundService : Service() {
         }
         if (engine.finishIfDue()) {
             handler.removeCallbacks(tickRunnable)
-            onFinished()
+            onCountdownEnd()
         } else {
             // Alarm datang sedikit lebih awal dari waktu habis: pasang ulang
             scheduleTick()
@@ -264,9 +324,149 @@ class TimerForegroundService : Service() {
         cancelFinishAlarm()
         stopAlarm()
         releaseWakeLock()
+        cancelTransition()
+        endIntervalSession() // Interval: putaran kembali ke awal
         engine.reset()
-        // IDLE menampilkan durasi terpilih user (dari DurationStore)
-        engine.durationMs = DurationStore.get(this)
+        // IDLE menampilkan durasi terpilih user: Interval 1 kalau mode Interval,
+        // kalau tidak durasi dari DurationStore
+        engine.durationMs = if (IntervalStore.isIntervalMode(this)) {
+            IntervalStore.getConfig(this).a * 1000L
+        } else {
+            DurationStore.get(this)
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // Mode Interval
+    // ---------------------------------------------------------------
+    //
+    // Satu putaran = Interval 1 lalu Interval 2. Kalau Interval 2 = 00:00 (mati),
+    // satu putaran cuma Interval 1. Tiap interval berakhir: beep 1 detik (hitungan
+    // tertahan selama beep), lalu interval berikutnya langsung jalan. Setelah
+    // interval TERAKHIR di putaran TERAKHIR: alarm penuh seperti timer biasa.
+
+    /** Tombol Mulai di halaman Interval popup Atur: hentikan semuanya, simpan, lalu mulai dari putaran pertama. */
+    private fun handleStartInterval(a: Int, b: Int, total: Int) {
+        if (a <= 0 || total <= 0) return // Interval 1 wajib terisi
+        handler.removeCallbacks(tickRunnable)
+        cancelFinishAlarm()
+        releaseWakeLock()
+        stopAlarm()
+        IntervalStore.setConfig(this, a, b, total)
+        startIntervalSession(a, b, total)
+    }
+
+    private fun startIntervalSession(a: Int, b: Int, total: Int) {
+        cancelTransition()
+        ivActive = true
+        ivA = a
+        ivB = b
+        ivTotal = total
+        ivRound = 1
+        ivPhase = 1
+        IntervalStore.setIntervalMode(this, true)
+        persistSession()
+        engine.startFresh(segmentMs())
+        armCountdown()
+        refreshNotification()
+    }
+
+    /** Lama interval yang sedang berjalan (atau yang berikutnya, saat jeda beep), dalam ms. */
+    private fun segmentMs(): Long = (if (ivPhase == 1) ivA else ivB) * 1000L
+
+    private fun persistSession() {
+        IntervalStore.saveSession(this, ivA, ivB, ivTotal, ivRound, ivPhase)
+    }
+
+    /** Pulihkan sesi dari penyimpanan (dipakai setelah proses app sempat dimatikan sistem). */
+    private fun loadSession() {
+        val s = IntervalStore.getSession(this)
+        if (s == null) {
+            ivActive = false
+            return
+        }
+        ivActive = true
+        ivA = s.a
+        ivB = s.b
+        ivTotal = s.total
+        ivRound = s.round
+        ivPhase = s.phase
+    }
+
+    private fun endIntervalSession() {
+        ivActive = false
+        IntervalStore.clearSession(this)
+    }
+
+    /** Batalkan jeda beep (kalau sedang berlangsung) dan hentikan bunyinya. */
+    private fun cancelTransition() {
+        handler.removeCallbacks(transitionRunnable)
+        beepPlayer.stop()
+        inTransition = false
+    }
+
+    /**
+     * Hitungan satu interval habis. Mode Interval dan masih ada interval berikutnya:
+     * beep lalu lanjut. Selain itu (timer biasa, atau interval terakhir): alarm penuh.
+     */
+    private fun onCountdownEnd() {
+        if (ivActive && prepareNextSegment()) return
+        if (ivActive) endIntervalSession() // semua putaran selesai
+        onFinished()
+    }
+
+    /**
+     * Pindah ke interval berikutnya dan mulai jeda beep. Return false kalau tidak
+     * ada interval berikutnya (semua putaran sudah selesai).
+     */
+    private fun prepareNextSegment(): Boolean {
+        var round = ivRound
+        var phase = ivPhase
+        if (phase == 1 && ivB > 0) {
+            phase = 2
+        } else {
+            if (round >= ivTotal) return false
+            round++ // satu putaran selesai: sisa putaran berkurang satu
+            phase = 1
+        }
+        ivRound = round
+        ivPhase = phase
+
+        // Selama beep, hitungan tertahan di awal interval berikutnya
+        handler.removeCallbacks(tickRunnable)
+        cancelFinishAlarm()
+        engine.holdPaused(segmentMs())
+        inTransition = true
+        persistSession()
+        beepPlayer.start()
+        handler.removeCallbacks(transitionRunnable)
+        handler.postDelayed(transitionRunnable, BEEP_GAP_MS)
+        refreshNotification()
+        return true
+    }
+
+    /** Beep 1 detik selesai: interval berikutnya langsung jalan. */
+    private fun finishTransition() {
+        if (!inTransition) return
+        inTransition = false
+        beepPlayer.stop() // potong tepat di 1 detik
+        if (engine.state == TimerState.PAUSED) {
+            engine.playPause() // PAUSED -> RUNNING dari durasi interval berikutnya
+            armCountdown()
+            refreshNotification()
+        }
+    }
+
+    /** Teks kecil di notifikasi persisten, atau null kalau bukan mode Interval. */
+    private fun intervalLabel(): String? {
+        if (ivActive) {
+            val left = (ivTotal - ivRound + 1).coerceAtLeast(1)
+            return "Interval $ivPhase \u00B7 sisa $left putaran"
+        }
+        if (engine.state == TimerState.IDLE && IntervalStore.isIntervalMode(this)) {
+            return "Interval 1 \u00B7 sisa ${IntervalStore.getConfig(this).repeat} putaran"
+        }
+        return null
     }
 
     // ---------------------------------------------------------------
@@ -281,7 +481,7 @@ class TimerForegroundService : Service() {
     private fun onTick() {
         if (engine.state != TimerState.RUNNING) return
         if (engine.finishIfDue()) {
-            onFinished()
+            onCountdownEnd()
             return
         }
         refreshNotification()
@@ -467,16 +667,19 @@ class TimerForegroundService : Service() {
     /** Kirim ulang notifikasi utama, tapi hanya kalau angka atau ikonnya berubah. */
     private fun refreshNotification() {
         val text = TimerEngine.formatTime(engine.remainingMs())
-        val showPause = engine.state == TimerState.RUNNING
-        if (text == lastText && showPause == lastShowPause) return
+        val showPause = engine.state == TimerState.RUNNING || inTransition
+        val label = intervalLabel()
+        if (text == lastText && showPause == lastShowPause && label == lastLabel) return
         notificationManager().notify(NOTIFICATION_ID, buildNotification())
     }
 
     private fun buildNotification(): Notification {
         val timeText = TimerEngine.formatTime(engine.remainingMs())
-        val showPause = engine.state == TimerState.RUNNING
+        val showPause = engine.state == TimerState.RUNNING || inTransition
+        val label = intervalLabel()
         lastText = timeText
         lastShowPause = showPause
+        lastLabel = label
 
         // Tombol "Atur" -> HARUS PendingIntent.getActivity supaya notification shade
         // menutup otomatis. Activity-nya transparan & langsung finish(), lalu
@@ -511,6 +714,12 @@ class TimerForegroundService : Service() {
 
         val customView = RemoteViews(packageName, R.layout.notification_timer).apply {
             setTextViewText(R.id.txtNotifTime, timeText)
+            if (label != null) {
+                setTextViewText(R.id.txtNotifLabel, label)
+                setViewVisibility(R.id.txtNotifLabel, android.view.View.VISIBLE)
+            } else {
+                setViewVisibility(R.id.txtNotifLabel, android.view.View.GONE)
+            }
             setImageViewResource(R.id.btnPlay, if (showPause) R.drawable.ic_pause else R.drawable.ic_play)
             setContentDescription(R.id.btnPlay, if (showPause) "Pause" else "Play")
             setOnClickPendingIntent(R.id.btnPlay, playPausePending)

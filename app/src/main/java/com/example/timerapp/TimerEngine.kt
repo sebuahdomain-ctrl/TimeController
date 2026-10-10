@@ -88,6 +88,16 @@ class TimerEngine {
     }
 
     /**
+     * Tahan di PAUSED dengan sisa waktu tertentu. Dipakai mode Interval saat jeda
+     * beep antar interval: tampilan sudah menunjukkan durasi interval berikutnya,
+     * dan playPause() akan memulai hitungan dari durasi itu.
+     */
+    fun holdPaused(holdMs: Long) {
+        pausedRemainingMs = maxOf(holdMs, 0L)
+        state = TimerState.PAUSED
+    }
+
+    /**
      * Pulihkan keadaan RUNNING dengan sisa waktu tertentu. Dipakai kalau proses
      * app sempat dimatikan sistem lalu hidup lagi (lihat RunningStore).
      */
