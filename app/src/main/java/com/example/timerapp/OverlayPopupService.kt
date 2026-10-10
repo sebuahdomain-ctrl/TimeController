@@ -14,15 +14,25 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.NumberPicker
 import android.widget.TextView
 
 /**
- * Menampilkan popup "Atur durasi" sebagai jendela overlay di atas app lain
+ * Menampilkan popup "Timer / Interval" sebagai jendela overlay di atas app lain
  * (WindowManager + TYPE_APPLICATION_OVERLAY), jadi app yang sedang
  * dibuka user tetap di depan.
  */
 class OverlayPopupService : Service() {
+
+    companion object {
+        // Halaman yang sedang tampil di popup (dipilih lewat judul "Timer v")
+        private const val PAGE_TIMER = 0
+        private const val PAGE_INTERVAL = 1
+    }
+
+    // Halaman aktif. Selalu mulai dari Timer tiap popup dibuka.
+    private var currentPage = PAGE_TIMER
 
     private var windowManager: WindowManager? = null
     private var popupView: View? = null
@@ -48,6 +58,7 @@ class OverlayPopupService : Service() {
 
     private fun showPopup() {
         startConsumed = false
+        currentPage = PAGE_TIMER
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         // Popup di-inflate dari context Service, jadi tidak otomatis ikut
@@ -131,12 +142,17 @@ class OverlayPopupService : Service() {
         val btnMulai: TextView = view.findViewById(R.id.btnMulai)
         val btnReset: TextView = view.findViewById(R.id.btnReset)
 
-        // Mulai hanya boleh dipakai kalau roda bukan 00:00
+        // Mulai hanya boleh dipakai di halaman Timer dan kalau roda bukan 00:00.
+        // Reset hanya aktif di halaman Timer. (Halaman Interval masih kerangka kosong.)
         fun updateStartButton() {
-            val enabled = npMinute.value != 0 || npSecond.value != 0
+            val onTimer = currentPage == PAGE_TIMER
+            val enabled = onTimer && (npMinute.value != 0 || npSecond.value != 0)
             btnMulai.isEnabled = enabled
             btnMulai.isClickable = enabled
             btnMulai.alpha = if (enabled) 1f else 0.4f
+            btnReset.isEnabled = onTimer
+            btnReset.isClickable = onTimer
+            btnReset.alpha = if (onTimer) 1f else 0.4f
         }
 
         // Isi kedua roda sekaligus (tidak memicu listener roda, jadi tombol Mulai diperbarui manual)
@@ -177,6 +193,7 @@ class OverlayPopupService : Service() {
         // Mulai: simpan durasi, kirim ke service, lalu tutup popup
         btnMulai.setOnClickListener {
             if (startConsumed) return@setOnClickListener
+            if (currentPage != PAGE_TIMER) return@setOnClickListener
             val durationMs = (npMinute.value * 60L + npSecond.value) * 1000L
             if (durationMs <= 0L) return@setOnClickListener
             startConsumed = true
@@ -201,7 +218,45 @@ class OverlayPopupService : Service() {
             stopSelf()
         }
 
-        updateStartButton()
+        setupPageSwitch(view) { updateStartButton() }
+    }
+
+    /**
+     * Judul "Timer v" / "Interval v" yang bisa diketuk: membuka menu mini
+     * (di dalam kartu yang sama) untuk pindah halaman. Halaman yang tidak
+     * aktif INVISIBLE (bukan GONE) supaya ukuran kartu tidak loncat.
+     */
+    private fun setupPageSwitch(view: View, onPageChanged: () -> Unit) {
+        val btnSwitch: View = view.findViewById(R.id.btnPageSwitch)
+        val txtTitle: TextView = view.findViewById(R.id.txtPopupTitle)
+        val imgArrow: ImageView = view.findViewById(R.id.imgPageArrow)
+        val menu: View = view.findViewById(R.id.menuPage)
+        val itemTimer: TextView = view.findViewById(R.id.itemPageTimer)
+        val itemInterval: TextView = view.findViewById(R.id.itemPageInterval)
+        val pageTimer: View = view.findViewById(R.id.pageTimer)
+        val pageInterval: View = view.findViewById(R.id.pageInterval)
+
+        fun setMenuOpen(open: Boolean) {
+            menu.visibility = if (open) View.VISIBLE else View.GONE
+            imgArrow.animate().rotation(if (open) 180f else 0f).setDuration(150L).start()
+        }
+
+        fun showPage(page: Int) {
+            currentPage = page
+            val onTimer = page == PAGE_TIMER
+            pageTimer.visibility = if (onTimer) View.VISIBLE else View.INVISIBLE
+            pageInterval.visibility = if (onTimer) View.INVISIBLE else View.VISIBLE
+            txtTitle.text = if (onTimer) "Timer" else "Interval"
+            itemTimer.isSelected = onTimer
+            itemInterval.isSelected = !onTimer
+            onPageChanged()
+        }
+
+        btnSwitch.setOnClickListener { setMenuOpen(menu.visibility != View.VISIBLE) }
+        itemTimer.setOnClickListener { showPage(PAGE_TIMER); setMenuOpen(false) }
+        itemInterval.setOnClickListener { showPage(PAGE_INTERVAL); setMenuOpen(false) }
+
+        showPage(currentPage)
     }
 
     private fun removePopup() {

@@ -1,297 +1,427 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Popup "Atur durasi". Di-inflate dari context Service (bukan Activity),
+     Popup "Timer / Interval". Di-inflate dari context Service (bukan Activity),
      jadi TIDAK ada tema app/AppCompat/Material di sini: hanya view bawaan
      Android (LinearLayout, TextView, ImageButton, NumberPicker), dan warna
      lewat resource popup_* (values / values-night) supaya ikut mode
      gelap/terang sistem. Tombol & chip pakai TextView + background <ripple>,
      bukan <Button>, biar tidak kebawa gaya tombol tema platform.
+
+     Susunan: root FrameLayout (kartu) berisi
+       1) isi kartu (LinearLayout vertikal): baris judul + halaman + Mulai/Reset
+       2) menu mini pilihan halaman, melayang tepat di bawah judul
+          (bukan PopupMenu/Spinner bawaan, karena itu bikin jendela baru
+          yang bermasalah di dalam overlay Service).
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:background="@drawable/bg_popup_card"
-    android:paddingTop="14dp"
-    android:paddingBottom="14dp"
-    android:paddingStart="16dp"
-    android:paddingEnd="16dp"
     android:elevation="8dp">
 
-    <!-- Baris judul: "Atur durasi" + tombol X -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="8dp">
+        android:orientation="vertical"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
 
-        <TextView
-            android:id="@+id/txtPopupTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Atur durasi"
-            android:textSize="17sp"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="@color/popup_text" />
-
-        <ImageButton
-            android:id="@+id/btnClosePopup"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="-10dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:scaleType="center"
-            android:padding="0dp"
-            android:src="@drawable/ic_close"
-            android:tint="@color/popup_text"
-            android:contentDescription="Tutup" />
-
-    </LinearLayout>
-
-    <!-- Dua roda angka (menit dan detik) dengan titik dua di antaranya.
-         Satu baris: roda menit | titik dua | roda detik.
-         Titik dua SENGAJA digambar dari dua lingkaran, bukan TextView, karena
-         glyph ":" di font selalu tampak agak rendah. Wadahnya setinggi roda
-         (match_parent terhadap baris ini, tinggi baris = tinggi roda) dengan
-         gravity center, jadi titik tengah kedua lingkaran tepat di tengah
-         angka terpilih (di antara dua garis pemisah roda). Jarak antar-pusat
-         lingkaran = 6dp (diameter) + 9dp (margin) = 15dp. -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:orientation="horizontal">
-
-        <NumberPicker
-            android:id="@+id/npMinute"
-            android:layout_width="96dp"
-            android:layout_height="wrap_content"
-            android:descendantFocusability="blocksDescendants" />
-
-        <LinearLayout
-            android:layout_width="32dp"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center">
-
-            <View
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:background="@drawable/bg_colon_dot" />
-
-            <View
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:layout_marginTop="9dp"
-                android:background="@drawable/bg_colon_dot" />
-
-        </LinearLayout>
-
-        <NumberPicker
-            android:id="@+id/npSecond"
-            android:layout_width="96dp"
-            android:layout_height="wrap_content"
-            android:descendantFocusability="blocksDescendants" />
-
-    </LinearLayout>
-
-    <!-- Label di bawah roda. Lebarnya sama dengan baris roda di atas
-         (96dp + 32dp wadah titik dua + 96dp), supaya tiap label tepat di
-         bawah rodanya. -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="4dp"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="96dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="menit"
-            android:textSize="12sp"
-            android:textColor="@color/popup_text_secondary" />
-
-        <View
-            android:layout_width="32dp"
-            android:layout_height="0dp" />
-
-        <TextView
-            android:layout_width="96dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="detik"
-            android:textSize="12sp"
-            android:textColor="@color/popup_text_secondary" />
-
-    </LinearLayout>
-
-    <!-- Label "Pilihan cepat" -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="8dp"
-        android:text="Pilihan cepat"
-        android:textSize="12sp"
-        android:textColor="@color/popup_text_secondary" />
-
-    <!-- Grid pilihan cepat: 3 kolom x 2 baris -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
-
+        <!-- Baris judul: [Timer v] (bisa diketuk) + tombol X -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
 
-            <TextView
-                android:id="@+id/btnQuick1Min"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="44dp"
-                android:gravity="center"
+            <LinearLayout
+                android:id="@+id/btnPageSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="@drawable/bg_popup_chip"
-                android:text="1 mnt"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/popup_text" />
+                android:background="?android:attr/selectableItemBackground">
 
-            <TextView
-                android:id="@+id/btnQuick2Min"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:minHeight="44dp"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="@drawable/bg_popup_chip"
-                android:text="2 mnt"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/popup_text" />
+                <TextView
+                    android:id="@+id/txtPopupTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Timer"
+                    android:textSize="17sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/popup_text" />
 
-            <TextView
-                android:id="@+id/btnQuick5Min"
+                <ImageView
+                    android:id="@+id/imgPageArrow"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_arrow_drop_down"
+                    android:tint="@color/popup_text"
+                    android:importantForAccessibility="no" />
+
+            </LinearLayout>
+
+            <View
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:minHeight="44dp"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="@drawable/bg_popup_chip"
-                android:text="5 mnt"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/popup_text" />
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/btnClosePopup"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="-10dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="center"
+                android:padding="0dp"
+                android:src="@drawable/ic_close"
+                android:tint="@color/popup_text"
+                android:contentDescription="Tutup" />
 
         </LinearLayout>
 
+        <!-- Dua halaman ditumpuk. Yang tidak aktif INVISIBLE (bukan GONE),
+             jadi tinggi kartu selalu mengikuti halaman tertinggi dan tidak
+             loncat saat pindah halaman. -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Halaman Timer: isi lama popup, tidak diubah -->
+            <LinearLayout
+                android:id="@+id/pageTimer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+            <!-- Dua roda angka (menit dan detik) dengan titik dua di antaranya.
+                 Satu baris: roda menit | titik dua | roda detik.
+                 Titik dua SENGAJA digambar dari dua lingkaran, bukan TextView, karena
+                 glyph ":" di font selalu tampak agak rendah. Wadahnya setinggi roda
+                 (match_parent terhadap baris ini, tinggi baris = tinggi roda) dengan
+                 gravity center, jadi titik tengah kedua lingkaran tepat di tengah
+                 angka terpilih (di antara dua garis pemisah roda). Jarak antar-pusat
+                 lingkaran = 6dp (diameter) + 9dp (margin) = 15dp. -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:orientation="horizontal">
+
+                <NumberPicker
+                    android:id="@+id/npMinute"
+                    android:layout_width="96dp"
+                    android:layout_height="wrap_content"
+                    android:descendantFocusability="blocksDescendants" />
+
+                <LinearLayout
+                    android:layout_width="32dp"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_colon_dot" />
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:layout_marginTop="9dp"
+                        android:background="@drawable/bg_colon_dot" />
+
+                </LinearLayout>
+
+                <NumberPicker
+                    android:id="@+id/npSecond"
+                    android:layout_width="96dp"
+                    android:layout_height="wrap_content"
+                    android:descendantFocusability="blocksDescendants" />
+
+            </LinearLayout>
+
+            <!-- Label di bawah roda. Lebarnya sama dengan baris roda di atas
+                 (96dp + 32dp wadah titik dua + 96dp), supaya tiap label tepat di
+                 bawah rodanya. -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="96dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="menit"
+                    android:textSize="12sp"
+                    android:textColor="@color/popup_text_secondary" />
+
+                <View
+                    android:layout_width="32dp"
+                    android:layout_height="0dp" />
+
+                <TextView
+                    android:layout_width="96dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="detik"
+                    android:textSize="12sp"
+                    android:textColor="@color/popup_text_secondary" />
+
+            </LinearLayout>
+
+            <!-- Label "Pilihan cepat" -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:text="Pilihan cepat"
+                android:textSize="12sp"
+                android:textColor="@color/popup_text_secondary" />
+
+            <!-- Grid pilihan cepat: 3 kolom x 2 baris -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btnQuick1Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="1 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                    <TextView
+                        android:id="@+id/btnQuick2Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="2 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                    <TextView
+                        android:id="@+id/btnQuick5Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="5 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btnQuick10Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="10 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                    <TextView
+                        android:id="@+id/btnQuick20Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="20 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                    <TextView
+                        android:id="@+id/btnQuick30Min"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:minHeight="44dp"
+                        android:gravity="center"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="@drawable/bg_popup_chip"
+                        android:text="30 mnt"
+                        android:textSize="14sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Halaman Interval: masih kerangka kosong (tahap tampilan) -->
+            <LinearLayout
+                android:id="@+id/pageInterval"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="invisible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Interval kustom"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textColor="@color/popup_text" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="segera hadir"
+                    android:textSize="12sp"
+                    android:textColor="@color/popup_text_secondary" />
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <!-- Baris bawah: Reset dan Mulai -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="20dp"
             android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/btnQuick10Min"
+                android:id="@+id/btnReset"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:minHeight="44dp"
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
                 android:background="@drawable/bg_popup_chip"
-                android:text="10 mnt"
-                android:textSize="14sp"
+                android:text="Reset"
+                android:textSize="15sp"
                 android:fontFamily="sans-serif-medium"
                 android:textColor="@color/popup_text" />
 
             <TextView
-                android:id="@+id/btnQuick20Min"
+                android:id="@+id/btnMulai"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:minHeight="44dp"
+                android:layout_marginStart="12dp"
                 android:gravity="center"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="@drawable/bg_popup_chip"
-                android:text="20 mnt"
-                android:textSize="14sp"
+                android:background="@drawable/bg_popup_start"
+                android:text="Mulai"
+                android:textSize="15sp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="@color/popup_text" />
-
-            <TextView
-                android:id="@+id/btnQuick30Min"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:minHeight="44dp"
-                android:gravity="center"
-                android:clickable="true"
-                android:focusable="true"
-                android:background="@drawable/bg_popup_chip"
-                android:text="30 mnt"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium"
-                android:textColor="@color/popup_text" />
+                android:textColor="#FFFFFF" />
 
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Baris bawah: Reset dan Mulai -->
+    <!-- Menu mini pilihan halaman. Melayang di bawah judul (14dp padding atas
+         + 40dp tinggi baris judul = 54dp), awalnya tersembunyi. elevation lebih
+         tinggi dari kartu supaya selalu tampil di atas isi. -->
     <LinearLayout
-        android:layout_width="match_parent"
+        android:id="@+id/menuPage"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:orientation="horizontal">
+        android:layout_gravity="top|start"
+        android:layout_marginTop="52dp"
+        android:layout_marginStart="16dp"
+        android:minWidth="140dp"
+        android:orientation="vertical"
+        android:padding="4dp"
+        android:background="@drawable/bg_popup_menu"
+        android:elevation="12dp"
+        android:visibility="gone">
 
         <TextView
-            android:id="@+id/btnReset"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:gravity="center"
+            android:id="@+id/itemPageTimer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:clickable="true"
             android:focusable="true"
-            android:background="@drawable/bg_popup_chip"
-            android:text="Reset"
+            android:background="@drawable/bg_popup_menu_item"
+            android:text="Timer"
             android:textSize="15sp"
-            android:fontFamily="sans-serif-medium"
             android:textColor="@color/popup_text" />
 
         <TextView
-            android:id="@+id/btnMulai"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:gravity="center"
+            android:id="@+id/itemPageInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:gravity="center_vertical"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
             android:clickable="true"
             android:focusable="true"
-            android:background="@drawable/bg_popup_start"
-            android:text="Mulai"
+            android:background="@drawable/bg_popup_menu_item"
+            android:text="Interval"
             android:textSize="15sp"
-            android:fontFamily="sans-serif-medium"
-            android:textColor="#FFFFFF" />
+            android:textColor="@color/popup_text" />
 
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>
