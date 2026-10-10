@@ -29,10 +29,25 @@ class OverlayPopupService : Service() {
         // Halaman yang sedang tampil di popup (dipilih lewat judul "Timer v")
         private const val PAGE_TIMER = 0
         private const val PAGE_INTERVAL = 1
+
+        // Batas roda: menit 0..60 (60:00 paling besar), detik 0..59
+        private const val MAX_MINUTE = 60
+        private const val MAX_SECOND = 59
     }
 
     // Halaman aktif. Selalu mulai dari Timer tiap popup dibuka.
     private var currentPage = PAGE_TIMER
+
+    // Halaman Interval (tampilan saja, belum disimpan dan belum dijalankan):
+    // dua waktu dalam detik (00:00 pada Interval 2 = mati), jumlah ulang,
+    // dan kotak mana yang sedang diedit rodanya (1 atau 2).
+    private var intervalA = 60
+    private var intervalB = 120
+    private var intervalRepeat = 4
+    private var intervalActive = 1
+
+    // Dipasang setupIntervalPage: Reset di halaman Interval mengosongkan kotak aktif
+    private var resetInterval: (() -> Unit)? = null
 
     private var windowManager: WindowManager? = null
     private var popupView: View? = null
@@ -59,6 +74,10 @@ class OverlayPopupService : Service() {
     private fun showPopup() {
         startConsumed = false
         currentPage = PAGE_TIMER
+        intervalA = 60
+        intervalB = 120
+        intervalRepeat = 4
+        intervalActive = 1
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         // Popup di-inflate dari context Service, jadi tidak otomatis ikut
@@ -104,17 +123,17 @@ class OverlayPopupService : Service() {
         return minOf(metrics.widthPixels * 0.85f, maxWidthPx).toInt()
     }
 
-    /** Roda menit (0..99) dan detik (0..59), berputar, angka selalu 2 digit. */
+    /** Roda menit (0..60) dan detik (0..59), berputar, angka selalu 2 digit. */
     private fun setupNumberPickers(view: View) {
         val npMinute: NumberPicker = view.findViewById(R.id.npMinute)
         val npSecond: NumberPicker = view.findViewById(R.id.npSecond)
 
-        configurePicker(npMinute, maxValue = 99)
-        configurePicker(npSecond, maxValue = 59)
+        configurePicker(npMinute, maxValue = MAX_MINUTE)
+        configurePicker(npSecond, maxValue = MAX_SECOND)
 
         // Nilai awal kedua roda = durasi terpilih (pertama kali 00:00)
         val durationMs = DurationStore.get(this)
-        npMinute.value = (durationMs / 60_000L).toInt().coerceIn(0, 99)
+        npMinute.value = (durationMs / 60_000L).toInt().coerceIn(0, MAX_MINUTE)
         npSecond.value = ((durationMs / 1000L) % 60L).toInt()
     }
 
@@ -143,16 +162,13 @@ class OverlayPopupService : Service() {
         val btnReset: TextView = view.findViewById(R.id.btnReset)
 
         // Mulai hanya boleh dipakai di halaman Timer dan kalau roda bukan 00:00.
-        // Reset hanya aktif di halaman Timer. (Halaman Interval masih kerangka kosong.)
+        // (Halaman Interval belum punya logika jalan, jadi Mulai di sana mati dulu.)
         fun updateStartButton() {
             val onTimer = currentPage == PAGE_TIMER
             val enabled = onTimer && (npMinute.value != 0 || npSecond.value != 0)
             btnMulai.isEnabled = enabled
             btnMulai.isClickable = enabled
             btnMulai.alpha = if (enabled) 1f else 0.4f
-            btnReset.isEnabled = onTimer
-            btnReset.isClickable = onTimer
-            btnReset.alpha = if (onTimer) 1f else 0.4f
         }
 
         // Isi kedua roda sekaligus (tidak memicu listener roda, jadi tombol Mulai diperbarui manual)
@@ -167,9 +183,15 @@ class OverlayPopupService : Service() {
             stopSelf()
         }
 
-        // Tiap roda digeser, keadaan tombol Mulai ikut diperbarui
-        npMinute.setOnValueChangedListener { _, _, _ -> updateStartButton() }
-        npSecond.setOnValueChangedListener { _, _, _ -> updateStartButton() }
+        // Tiap roda digeser: jaga batas 60:00, lalu perbarui tombol Mulai
+        npMinute.setOnValueChangedListener { _, _, _ ->
+            limitToSixty(npMinute, npSecond, minuteMoved = true)
+            updateStartButton()
+        }
+        npSecond.setOnValueChangedListener { _, _, _ ->
+            limitToSixty(npMinute, npSecond, minuteMoved = false)
+            updateStartButton()
+        }
 
         // 6 pilihan cepat: hanya mengisi roda (menit = N, detik = 0),
         // TIDAK memulai timer dan popup tetap terbuka.
@@ -186,9 +208,12 @@ class OverlayPopupService : Service() {
             chip.setOnClickListener { setWheels(minutes, 0) }
         }
 
-        // Reset: kedua roda kembali ke 00:00. Popup tetap terbuka dan timer
+        // Reset: di halaman Timer kedua roda kembali ke 00:00; di halaman Interval
+        // kotak yang sedang dipilih jadi 00:00. Popup tetap terbuka dan timer
         // yang sedang berjalan tidak disentuh.
-        btnReset.setOnClickListener { setWheels(0, 0) }
+        btnReset.setOnClickListener {
+            if (currentPage == PAGE_INTERVAL) resetInterval?.invoke() else setWheels(0, 0)
+        }
 
         // Mulai: simpan durasi, kirim ke service, lalu tutup popup
         btnMulai.setOnClickListener {
@@ -218,7 +243,95 @@ class OverlayPopupService : Service() {
             stopSelf()
         }
 
+        setupIntervalPage(view)
         setupPageSwitch(view) { updateStartButton() }
+    }
+
+    /**
+     * Batas 60:00. Kalau menit sampai 60, detik dipaksa 00. Kalau detik digeser
+     * saat menit masih 60, menit turun ke 59 (detiknya dipertahankan).
+     */
+    private fun limitToSixty(npMinute: NumberPicker, npSecond: NumberPicker, minuteMoved: Boolean) {
+        if (npMinute.value == MAX_MINUTE && npSecond.value > 0) {
+            if (minuteMoved) npSecond.value = 0 else npMinute.value = MAX_MINUTE - 1
+        }
+    }
+
+    private fun mmss(totalSeconds: Int): String =
+        String.format(java.util.Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60)
+
+    /**
+     * Halaman Interval (tampilan saja): ketuk Interval 1 / Interval 2 untuk memilih
+     * kotak yang diedit, roda mengubah waktunya, baris Ulangi mengatur jumlah ulang.
+     * Interval 2 di 00:00 tampil redup (artinya mati). Belum ada logika menjalankan.
+     */
+    private fun setupIntervalPage(view: View) {
+        val boxA: View = view.findViewById(R.id.boxInterval1)
+        val boxB: View = view.findViewById(R.id.boxInterval2)
+        val txtA: TextView = view.findViewById(R.id.txtInterval1)
+        val txtB: TextView = view.findViewById(R.id.txtInterval2)
+        val npMin: NumberPicker = view.findViewById(R.id.npIntMinute)
+        val npSec: NumberPicker = view.findViewById(R.id.npIntSecond)
+        val btnMinus: TextView = view.findViewById(R.id.btnRepeatMinus)
+        val btnPlus: TextView = view.findViewById(R.id.btnRepeatPlus)
+        val txtRepeat: TextView = view.findViewById(R.id.txtRepeat)
+
+        configurePicker(npMin, maxValue = MAX_MINUTE)
+        configurePicker(npSec, maxValue = MAX_SECOND)
+
+        fun refresh() {
+            txtA.text = mmss(intervalA)
+            txtB.text = mmss(intervalB)
+            boxA.isSelected = intervalActive == 1
+            boxB.isSelected = intervalActive == 2
+            // Interval 2 di 00:00 = mati: redup, kecuali sedang dipilih
+            boxB.alpha = if (intervalB == 0 && intervalActive != 2) 0.45f else 1f
+            txtRepeat.text = intervalRepeat.toString()
+        }
+
+        // Isi roda dengan waktu kotak yang sedang dipilih
+        fun loadWheels() {
+            val v = if (intervalActive == 1) intervalA else intervalB
+            npMin.value = v / 60
+            npSec.value = v % 60
+        }
+
+        // Simpan nilai roda ke kotak yang sedang dipilih
+        fun readWheels() {
+            val v = npMin.value * 60 + npSec.value
+            if (intervalActive == 1) intervalA = v else intervalB = v
+            refresh()
+        }
+
+        npMin.setOnValueChangedListener { _, _, _ ->
+            limitToSixty(npMin, npSec, minuteMoved = true)
+            readWheels()
+        }
+        npSec.setOnValueChangedListener { _, _, _ ->
+            limitToSixty(npMin, npSec, minuteMoved = false)
+            readWheels()
+        }
+
+        boxA.setOnClickListener { intervalActive = 1; loadWheels(); refresh() }
+        boxB.setOnClickListener { intervalActive = 2; loadWheels(); refresh() }
+
+        btnMinus.setOnClickListener {
+            intervalRepeat = maxOf(1, intervalRepeat - 1)
+            refresh()
+        }
+        btnPlus.setOnClickListener {
+            intervalRepeat = minOf(99, intervalRepeat + 1)
+            refresh()
+        }
+
+        resetInterval = {
+            if (intervalActive == 1) intervalA = 0 else intervalB = 0
+            loadWheels()
+            refresh()
+        }
+
+        loadWheels()
+        refresh()
     }
 
     /**

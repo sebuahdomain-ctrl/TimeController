@@ -17,8 +17,8 @@ object DurationStore {
     private const val PREFS_NAME = "timer_prefs"
     private const val KEY_DURATION_MS = "duration_ms"
 
-    /** Batas atas: 99 menit 59 detik (sesuai roda menit 0..99 dan detik 0..59). */
-    const val MAX_DURATION_MS = (99 * 60 + 59) * 1000L
+    /** Batas atas: 60 menit (60:00), sesuai roda menit 0..60 dan detik 0..59. */
+    const val MAX_DURATION_MS = 60 * 60 * 1000L
 
     /** Ambil durasi terpilih. Kalau belum pernah disimpan: DEFAULT_DURATION_MS. */
     fun get(context: Context): Long {

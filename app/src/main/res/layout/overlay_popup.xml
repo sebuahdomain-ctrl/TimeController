@@ -91,7 +91,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
-            <!-- Halaman Timer: isi lama popup, tidak diubah -->
+            <!-- Halaman Timer: roda selebar kartu, menit 0..60 -->
             <LinearLayout
                 android:id="@+id/pageTimer"
                 android:layout_width="match_parent"
@@ -107,19 +107,19 @@
                  angka terpilih (di antara dua garis pemisah roda). Jarak antar-pusat
                  lingkaran = 6dp (diameter) + 9dp (margin) = 15dp. -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
                 android:orientation="horizontal">
 
                 <NumberPicker
                     android:id="@+id/npMinute"
-                    android:layout_width="96dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:descendantFocusability="blocksDescendants" />
 
                 <LinearLayout
-                    android:layout_width="32dp"
+                    android:layout_width="44dp"
                     android:layout_height="match_parent"
                     android:orientation="vertical"
                     android:gravity="center">
@@ -139,24 +139,25 @@
 
                 <NumberPicker
                     android:id="@+id/npSecond"
-                    android:layout_width="96dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:descendantFocusability="blocksDescendants" />
 
             </LinearLayout>
 
             <!-- Label di bawah roda. Lebarnya sama dengan baris roda di atas
-                 (96dp + 32dp wadah titik dua + 96dp), supaya tiap label tepat di
-                 bawah rodanya. -->
+                 (dua roda berbobot sama + wadah titik dua 44dp), supaya tiap label
+                 tepat di bawah rodanya. -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="4dp"
                 android:orientation="horizontal">
 
                 <TextView
-                    android:layout_width="96dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:text="menit"
@@ -164,11 +165,12 @@
                     android:textColor="@color/popup_text_secondary" />
 
                 <View
-                    android:layout_width="32dp"
+                    android:layout_width="44dp"
                     android:layout_height="0dp" />
 
                 <TextView
-                    android:layout_width="96dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:text="detik"
@@ -306,30 +308,229 @@
 
             </LinearLayout>
 
-            <!-- Halaman Interval: masih kerangka kosong (tahap tampilan) -->
+            <!-- Halaman Interval: dua kotak waktu, roda, dan baris Ulangi.
+                 Tinggi ikut halaman Timer (match_parent di FrameLayout); jarak antar
+                 blok dibagi rata lewat dua spacer berbobot. Tampilan saja: belum
+                 ada logika menjalankan interval. -->
             <LinearLayout
                 android:id="@+id/pageInterval"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:orientation="vertical"
-                android:gravity="center"
                 android:visibility="invisible">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Interval 1 | Interval 2 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Interval kustom"
-                    android:textSize="15sp"
-                    android:fontFamily="sans-serif-medium"
-                    android:textColor="@color/popup_text" />
+                    android:orientation="horizontal">
+
+                <LinearLayout
+                    android:id="@+id/boxInterval1"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="@drawable/bg_popup_box">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Interval 1"
+                        android:textSize="11sp"
+                        android:textColor="@color/popup_text_secondary" />
+
+                    <TextView
+                        android:id="@+id/txtInterval1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00"
+                        android:textSize="20sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:fontFeatureSettings="tnum"
+                        android:textColor="@color/popup_text" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/boxInterval2"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="@drawable/bg_popup_box">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Interval 2"
+                        android:textSize="11sp"
+                        android:textColor="@color/popup_text_secondary" />
+
+                    <TextView
+                        android:id="@+id/txtInterval2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00"
+                        android:textSize="20sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:fontFeatureSettings="tnum"
+                        android:textColor="@color/popup_text" />
+
+                </LinearLayout>
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+            <!-- Roda menit : detik untuk kotak Interval yang sedang dipilih -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <NumberPicker
+                    android:id="@+id/npIntMinute"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:descendantFocusability="blocksDescendants" />
+
+                <LinearLayout
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/bg_colon_dot" />
+
+                    <View
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:layout_marginTop="9dp"
+                        android:background="@drawable/bg_colon_dot" />
+
+                </LinearLayout>
+
+                <NumberPicker
+                    android:id="@+id/npIntSecond"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:descendantFocusability="blocksDescendants" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="segera hadir"
+                    android:gravity="center"
+                    android:text="menit"
                     android:textSize="12sp"
                     android:textColor="@color/popup_text_secondary" />
+
+                <View
+                    android:layout_width="44dp"
+                    android:layout_height="0dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="detik"
+                    android:textSize="12sp"
+                    android:textColor="@color/popup_text_secondary" />
+
+            </LinearLayout>
+
+            </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <!-- Baris Ulangi: Ulangi   -  4  + -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="14dp"
+                    android:background="@drawable/bg_popup_chip">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Ulangi"
+                        android:textSize="15sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                <TextView
+                    android:id="@+id/btnRepeatMinus"
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:text="−"
+                    android:textSize="20sp"
+                    android:textColor="@color/popup_text"
+                    android:contentDescription="Kurangi" />
+
+                    <TextView
+                        android:id="@+id/txtRepeat"
+                        android:layout_width="40dp"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="4"
+                        android:textSize="16sp"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/popup_text" />
+
+                <TextView
+                    android:id="@+id/btnRepeatPlus"
+                    android:layout_width="44dp"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:text="+"
+                    android:textSize="20sp"
+                    android:textColor="@color/popup_text"
+                    android:contentDescription="Tambah" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
