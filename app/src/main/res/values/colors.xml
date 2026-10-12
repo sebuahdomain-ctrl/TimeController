@@ -15,4 +15,13 @@
     <color name="popup_text_muted">#8E8E93</color>
     <color name="popup_stroke">#D8D8DD</color>
     <color name="popup_selected_bg">#EEEEF1</color>
+    <!-- Layar alarm penuh (AlarmActivity). Selalu gelap, tidak ikut mode terang/gelap
+         sistem: layar ini muncul saat HP terkunci / layar mati, sering di ruang gelap. -->
+    <color name="alarm_bg">#0E0E10</color>
+    <color name="alarm_red">#E5484D</color>
+    <color name="alarm_red_bg">#2A1213</color>
+    <color name="alarm_text">#FFFFFF</color>
+    <color name="alarm_text_muted">#8E8E93</color>
+    <color name="alarm_track">#1C1C1F</color>
+    <color name="alarm_track_stroke">#3A3A3F</color>
 </resources>

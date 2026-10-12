@@ -1,34 +1,124 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Layar alarm penuh (AlarmActivity). Hanya view bawaan Android, warna lewat
-     resource popup_* supaya ikut mode gelap/terang sistem. -->
+<!-- Layar alarm penuh (AlarmActivity), muncul saat HP terkunci / layar mati.
+     Ukuran dirancang untuk layar ~360x800dp (rasio 20:9, mis. OPPO A16e) dan
+     dibagi pakai bobot (weight) supaya tetap seimbang di layar lain.
+     Hanya view bawaan Android + SlideToStopView. Warna tetap gelap (alarm_*). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp"
-    android:background="@color/popup_bg">
+    android:gravity="center_horizontal"
+    android:fitsSystemWindows="true"
+    android:background="@color/alarm_bg">
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.1" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Timer berakhir"
-        android:textSize="32sp"
+        android:textSize="16sp"
         android:fontFamily="sans-serif-medium"
-        android:textColor="@color/popup_text" />
+        android:textColor="@color/alarm_text_muted" />
+
+    <!-- Area jam: 280dp memuat lingkaran berdenyut (240dp x skala 1,15) -->
+    <FrameLayout
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginTop="20dp">
+
+        <View
+            android:id="@+id/alarmRing1"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_alarm_ring" />
+
+        <View
+            android:id="@+id/alarmRing2"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_alarm_ring" />
+
+        <LinearLayout
+            android:layout_width="190dp"
+            android:layout_height="190dp"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/bg_alarm_disc">
+
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_alarm_clock" />
+
+            <TextView
+                android:id="@+id/txtAlarmTime"
+                android:layout_width="140dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:maxLines="1"
+                android:includeFontPadding="false"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="28sp"
+                android:autoSizeMaxTextSize="48sp"
+                android:fontFamily="sans-serif-medium"
+                android:text="00:00"
+                android:textColor="@color/alarm_text" />
+        </LinearLayout>
+    </FrameLayout>
 
     <TextView
-        android:id="@+id/btnAlarmStop"
+        android:id="@+id/txtAlarmCaption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Durasi timer selesai"
+        android:textSize="14sp"
+        android:textColor="@color/alarm_text_muted" />
+
+    <Space
         android:layout_width="match_parent"
-        android:layout_height="72dp"
-        android:layout_marginTop="48dp"
-        android:gravity="center"
-        android:clickable="true"
-        android:focusable="true"
-        android:background="@drawable/bg_popup_start"
-        android:text="Matikan"
-        android:textSize="22sp"
-        android:fontFamily="sans-serif-medium"
-        android:textColor="#FFFFFF" />
+        android:layout_height="0dp"
+        android:layout_weight="1.3" />
+
+    <!-- Slider: lebar mengikuti layar (margin 34dp kiri-kanan), tinggi 80dp,
+         tombol geser 72dp -->
+    <com.example.timerapp.SlideToStopView
+        android:id="@+id/slideStop"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:layout_marginStart="34dp"
+        android:layout_marginEnd="34dp"
+        android:layout_marginBottom="48dp"
+        android:padding="4dp"
+        android:background="@drawable/bg_alarm_track">
+
+        <TextView
+            android:id="@+id/slideLabel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:paddingStart="56dp"
+            android:text="Geser untuk matikan"
+            android:textSize="16sp"
+            android:textColor="@color/alarm_text_muted" />
+
+        <ImageView
+            android:id="@+id/slideThumb"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:scaleType="center"
+            android:contentDescription="Geser untuk matikan alarm"
+            android:background="@drawable/bg_alarm_thumb"
+            android:src="@drawable/ic_chevrons_right" />
+    </com.example.timerapp.SlideToStopView>
 
 </LinearLayout>
