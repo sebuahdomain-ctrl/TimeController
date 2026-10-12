@@ -1,28 +1,153 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:background="#111111">
+    android:background="@color/alarm_bg"
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
-    <Button
-        android:id="@+id/btnStart"
-        android:layout_width="180dp"
-        android:layout_height="180dp"
-        android:text="START"
-        android:textColor="#FFFFFF"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:background="@drawable/bg_round_button" />
-
-    <TextView
-        android:id="@+id/txtStatus"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="Belum aktif"
-        android:textColor="#AAAAAA"
-        android:textSize="14sp" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="16dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="24dp">
 
-</LinearLayout>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Timer App"
+            android:textColor="@color/alarm_text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.example.timerapp.KnobView
+            android:id="@+id/knob"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:layout_marginTop="20dp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_main_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="8dp">
+
+            <View
+                android:id="@+id/statusDot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/bg_main_dot" />
+
+            <TextView
+                android:id="@+id/txtStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="Nonaktif"
+                android:textColor="@color/alarm_text"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_main_btn_start"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="Start"
+            android:textColor="@color/alarm_text"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_main_card"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="4dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingBottom="6dp"
+                android:text="Izin yang dibutuhkan"
+                android:textColor="@color/alarm_text_muted"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/rowNotif"
+                style="@style/MainPermRow">
+
+                <TextView
+                    style="@style/MainPermName"
+                    android:text="Notifikasi" />
+
+                <TextView
+                    android:id="@+id/stateNotif"
+                    style="@style/MainPermState" />
+            </LinearLayout>
+
+            <View style="@style/MainPermDivider" />
+
+            <LinearLayout
+                android:id="@+id/rowOverlay"
+                style="@style/MainPermRow">
+
+                <TextView
+                    style="@style/MainPermName"
+                    android:text="Tampil di atas app lain" />
+
+                <TextView
+                    android:id="@+id/stateOverlay"
+                    style="@style/MainPermState" />
+            </LinearLayout>
+
+            <View style="@style/MainPermDivider" />
+
+            <LinearLayout
+                android:id="@+id/rowFullScreen"
+                style="@style/MainPermRow">
+
+                <TextView
+                    style="@style/MainPermName"
+                    android:text="Layar penuh saat alarm" />
+
+                <TextView
+                    android:id="@+id/stateFullScreen"
+                    style="@style/MainPermState" />
+            </LinearLayout>
+
+            <View style="@style/MainPermDivider" />
+
+            <LinearLayout
+                android:id="@+id/rowBattery"
+                style="@style/MainPermRow">
+
+                <TextView
+                    style="@style/MainPermName"
+                    android:text="Bebas optimasi baterai" />
+
+                <TextView
+                    android:id="@+id/stateBattery"
+                    style="@style/MainPermState" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
