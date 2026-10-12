@@ -11,6 +11,7 @@ import android.animation.PropertyValuesHolder
 import android.app.KeyguardManager
 import android.os.Bundle
 import android.os.PowerManager
+import android.util.TypedValue
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.LinearInterpolator
@@ -78,6 +79,7 @@ class AlarmActivity : Activity() {
         val txtCaption: TextView = findViewById(R.id.txtAlarmCaption)
         if (IntervalStore.isIntervalMode(this)) {
             txtTime.text = "Selesai"
+            txtTime.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 32f)
             txtCaption.text = "Interval selesai"
         } else {
             txtTime.text = TimerEngine.formatTime(DurationStore.get(this))
