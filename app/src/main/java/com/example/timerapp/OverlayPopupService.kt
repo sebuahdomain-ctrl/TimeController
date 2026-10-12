@@ -35,7 +35,8 @@ class OverlayPopupService : Service() {
         private const val MAX_SECOND = 59
     }
 
-    // Halaman aktif. Selalu mulai dari Timer tiap popup dibuka.
+    // Halaman aktif. Saat popup dibuka, mengikuti mode terakhir: Interval kalau
+    // mode Interval, Timer kalau mode Timer biasa (lihat showPopup).
     private var currentPage = PAGE_TIMER
 
     // Halaman Interval: dua waktu dalam detik (00:00 pada Interval 2 = mati),
@@ -75,7 +76,7 @@ class OverlayPopupService : Service() {
 
     private fun showPopup() {
         startConsumed = false
-        currentPage = PAGE_TIMER
+        currentPage = if (IntervalStore.isIntervalMode(this)) PAGE_INTERVAL else PAGE_TIMER
         loadIntervalState()
         intervalActive = 1
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
